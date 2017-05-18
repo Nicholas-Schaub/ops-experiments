@@ -148,6 +148,21 @@ Wisconsin-Madison, University of Konstanz and Brian Northan.</license.copyrightO
 			<artifactId>nd4j-native</artifactId>
 			<version>${nd4j.version}</version>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>org.deeplearning4j</groupId>
+			<artifactId>deeplearning4j-ui</artifactId>
+			<version>0.6.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.deeplearning4j</groupId>
+			<artifactId>deeplearning4j-core</artifactId>
+			<version>0.8.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.nd4j</groupId>
+			<artifactId>nd4j-x86</artifactId>
+			<version>0.4-rc3.8</version>
+		</dependency>
 	</dependencies>
 </project>
