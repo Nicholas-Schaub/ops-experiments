@@ -10,14 +10,12 @@ import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.thread.ThreadService;
 import org.scijava.ui.UIService;
-import org.umich.ij.dbj.DeepBlueJ;
 
-import net.imagej.ImageJ;
 import net.imagej.ops.OpService;
 
 @Plugin(type = Command.class, headless = true,
 		menuPath = "Experimental>Deep Blue J")
-public class DeepBlueJ implements Command{
+public class DeepBlueJ implements Command {
 
 	@Parameter
 	OpService ops;
