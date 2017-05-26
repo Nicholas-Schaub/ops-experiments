@@ -52,14 +52,15 @@ public class DeepBlueJGUI extends JDialog{
 	private ThreadService thread;
 	private UIService ui;
 	
-	// Setup panels and subpanels
-	//private JPanel demoPanel;
+	// Demo data set load panel & components
 	private JPanel demoDataPanel;
-	
-	// Download Panel Components
 	private DirectoryChooserPanel dataDirectory;
 	private JButton loadButton;
 	private JToggleButton mnist;
+	
+	// Visualize data panel
+	private JPanel visDataPanel;
+	
 	
 	// Start/Stop Network Buttons
 	private JButton startTraining;
@@ -116,11 +117,11 @@ public class DeepBlueJGUI extends JDialog{
 		startTraining = new JButton("Start Training");
 		startTraining.setFocusPainted(false);
 		startTraining.setFocusable(false);
-		startTraining.setForeground(Color.green);
+		startTraining.setForeground(new Color(0,171,103));
 		stopTraining = new JButton("Stop Training");
 		stopTraining.setFocusPainted(false);
 		stopTraining.setFocusable(false);
-		stopTraining.setForeground(Color.red);
+		stopTraining.setForeground(new Color(203,43,37));
 		
 	}
 	
@@ -171,9 +172,12 @@ public class DeepBlueJGUI extends JDialog{
 				if (!coreDir.endsWith(File.separator)) {
 					coreDir += File.separator;
 				}
+				
 				if (mnist.isSelected()) {
 					
 					log.info("Loading MNIST digits...");
+					System.setProperty("user.home", coreDir);
+					
 					long startTime = System.currentTimeMillis();
 					
 					currentDataSet = "MNIST";
