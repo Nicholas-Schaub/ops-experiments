@@ -40,6 +40,12 @@ import org.scijava.ui.UIService;
 import org.umich.ij.guitools.DirectoryChooserPanel;
 
 import net.imagej.ops.OpService;
+import net.imagej.ops.experiments.ConvertersUtility;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.basictypeaccess.array.FloatArray;
+import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.type.numeric.real.FloatType;
 
 @SuppressWarnings("serial")
 public class DeepBlueJGUI extends JDialog{
@@ -60,7 +66,7 @@ public class DeepBlueJGUI extends JDialog{
 	
 	// Visualize data panel
 	private JPanel visDataPanel;
-	
+	private JButton showAllClasses;
 	
 	// Start/Stop Network Buttons
 	private JButton startTraining;
@@ -112,6 +118,13 @@ public class DeepBlueJGUI extends JDialog{
 			loadButton = new JButton("Load Data");
 			loadButton.setFocusPainted(false);
 			loadButton.setFocusable(false);
+			
+		visDataPanel = new JPanel(new GridBagLayout());
+		visDataPanel.setBorder(BorderFactory.createTitledBorder("Visualize Data"));
+			showAllClasses = new JButton("Show Each Class");
+			showAllClasses.setToolTipText("Display a representative image for each class.");
+			showAllClasses.setFocusPainted(false);
+			showAllClasses.setFocusable(false);
 		
 		// Start and stop training buttons
 		startTraining = new JButton("Start Training");
@@ -149,9 +162,19 @@ public class DeepBlueJGUI extends JDialog{
 		c.gridy++;
 		demoDataPanel.add(loadButton, c);
 		
+		c.gridy = 1;
+		c.gridwidth = 2;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		this.add(visDataPanel,c);
+		c.fill = GridBagConstraints.NONE;
+		c.gridy = 0;
+		c.ipadx = 2;
+		c.ipady = 2;
+		visDataPanel.add(showAllClasses, c);
+		
 		c.ipadx = 10;
 		c.ipady = 10;
-		c.gridy = 1;
+		c.gridy = 2;
 		c.gridwidth = 1;
 		c.anchor = GridBagConstraints.NORTHEAST;
 		this.add(startTraining, c);
@@ -249,6 +272,21 @@ public class DeepBlueJGUI extends JDialog{
 		        }
 
 		        log.info(eval.stats());
+			}
+			
+		});
+		
+		showAllClasses.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				DataSet data = trainData.next(1);
+				INDArray img = data.getFeatures();
+				ArrayImg<FloatType,FloatArray> ip = ArrayImgs.floats(netParams.numRowsIn,2*netParams.numColsIn);
+				ConvertersUtility.INDArrayToIIFloat2D(img, ip);
+				img = trainData.next().getFeatures();
+				ConvertersUtility.INDArrayToIIFloat2D(img, ip);
+				ImageJFunctions.show(ip);
 			}
 			
 		});
