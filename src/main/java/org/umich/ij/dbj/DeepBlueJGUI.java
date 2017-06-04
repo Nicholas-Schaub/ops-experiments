@@ -17,7 +17,13 @@ import javax.swing.JToggleButton;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
-import org.deeplearning4j.eval.Evaluation;
+import org.deeplearning4j.earlystopping.EarlyStoppingConfiguration;
+import org.deeplearning4j.earlystopping.EarlyStoppingModelSaver;
+import org.deeplearning4j.earlystopping.saver.LocalFileModelSaver;
+import org.deeplearning4j.earlystopping.scorecalc.DataSetLossCalculator;
+import org.deeplearning4j.earlystopping.termination.IterationTerminationCondition;
+import org.deeplearning4j.earlystopping.termination.MaxEpochsTerminationCondition;
+import org.deeplearning4j.earlystopping.trainer.EarlyStoppingTrainer;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
@@ -26,7 +32,6 @@ import org.deeplearning4j.nn.conf.layers.DenseLayer;
 import org.deeplearning4j.nn.conf.layers.OutputLayer;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
 import org.deeplearning4j.nn.weights.WeightInit;
-import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
@@ -39,13 +44,17 @@ import org.scijava.thread.ThreadService;
 import org.scijava.ui.UIService;
 import org.umich.ij.guitools.DirectoryChooserPanel;
 
+import ij.ImagePlus;
+import net.imagej.ImageJ;
 import net.imagej.ops.OpService;
 import net.imagej.ops.experiments.ConvertersUtility;
+import net.imglib2.IterableInterval;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.view.Views;
 
 @SuppressWarnings("serial")
 public class DeepBlueJGUI extends JDialog{
@@ -78,6 +87,9 @@ public class DeepBlueJGUI extends JDialog{
 	private DataSetIterator testData;
 	private NetworkParams netParams;
 	
+	// Training Interrupter
+	private TrainInterrupt trainInterrupt = new TrainInterrupt();
+	
 	public DeepBlueJGUI() {
 		
 		DeepBlueJGUI.setDefaultLookAndFeelDecorated(true);
@@ -89,6 +101,9 @@ public class DeepBlueJGUI extends JDialog{
 		initElements();
 		drawElements();
 		initListeners();
+		
+		ImageJ ij = new ImageJ();
+		
 		
 	}
 	
@@ -187,6 +202,15 @@ public class DeepBlueJGUI extends JDialog{
 	
 	private void initListeners() {
 		
+		stopTraining.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				trainInterrupt.interrupt();
+			}
+			
+		});
+		
 		loadButton.addActionListener(new ActionListener() {
 
 			@Override
@@ -228,51 +252,11 @@ public class DeepBlueJGUI extends JDialog{
 		
 		startTraining.addActionListener(new ActionListener() {
 
-			@Override
-			public void actionPerformed(ActionEvent e) {
-		        log.info("Build model...");
-		        MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
-		                .seed(netParams.seed) //include a random seed for reproducibility
-		                // use stochastic gradient descent as an optimization algorithm
-		                .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-		                .iterations(1)
-		                .learningRate(0.006) //specify the learning rate
-		                .updater(Updater.NESTEROVS).momentum(0.9) //specify the rate of change of the learning rate.
-		                .regularization(true).l2(1e-4)
-		                .list()
-		                .layer(0, new DenseLayer.Builder() //create the first, input layer with xavier initialization
-		                        .nIn(netParams.numRowsIn * netParams.numColsIn)
-		                        .nOut(1000)
-		                        .activation(Activation.RELU)
-		                        .weightInit(WeightInit.XAVIER)
-		                        .build())
-		                .layer(1, new OutputLayer.Builder(LossFunction.NEGATIVELOGLIKELIHOOD) //create hidden layer
-		                        .nIn(1000)
-		                        .nOut(netParams.numClasses)
-		                        .activation(Activation.SOFTMAX)
-		                        .weightInit(WeightInit.XAVIER)
-		                        .build())
-		                .pretrain(false).backprop(true) //use backpropagation to adjust weights
-		                .build();
-		        MultiLayerNetwork model = new MultiLayerNetwork(conf);
-		        model.init();
-		        model.setListeners(new ScoreIterationListener(100));
-		        
-		        log.info("Training model...");
-		        for( int i=0; i<netParams.numEpochs; i++ ){
-		            model.fit(trainData);
-		        }
-		        
-		        log.info("Evaluate model...");
-		        Evaluation eval = new Evaluation(netParams.numClasses); //create an evaluation object with 10 possible classes
-		        while(testData.hasNext()){
-		            DataSet next = testData.next();
-		            INDArray output = model.output(next.getFeatureMatrix()); //get the networks prediction
-		            eval.eval(next.getLabels(), output); //check the prediction against the true class
-		        }
 
-		        log.info(eval.stats());
-			}
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				thread.run(() -> {trainModel();});
+			}			
 			
 		});
 		
@@ -280,16 +264,98 @@ public class DeepBlueJGUI extends JDialog{
 
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				DataSet data = trainData.next(1);
-				INDArray img = data.getFeatures();
-				ArrayImg<FloatType,FloatArray> ip = ArrayImgs.floats(netParams.numRowsIn,2*netParams.numColsIn);
-				ConvertersUtility.INDArrayToIIFloat2D(img, ip);
-				img = trainData.next().getFeatures();
-				ConvertersUtility.INDArrayToIIFloat2D(img, ip);
-				ImageJFunctions.show(ip);
+				trainData.reset();
+				ArrayImg<FloatType,FloatArray> ip = ArrayImgs.floats(netParams.numColsIn,netParams.numRowsIn,netParams.numClasses);
+				DataSet example = trainData.next(1);
+				for (int i = 0; i<netParams.numClasses; i++) {
+					while (example.outcome()!=i) {
+						example = trainData.next(1);
+						if (!trainData.hasNext()) {
+							trainData.reset();
+						}
+					}
+					if (example.outcome()==i) {
+						INDArray img = example.getFeatures();
+						IterableInterval<FloatType> ipv = Views.interval(ip,
+																		 new long[] {0,0,i},
+																		 new long[] {netParams.numColsIn-1,netParams.numRowsIn-1,i});
+						ConvertersUtility.INDArrayToIIFloat2D(img, ipv);
+					}
+				}
+				ImagePlus imp = ImageJFunctions.show(ip);
+				imp.setTitle("Image Classes");
 			}
 			
 		});
+	}
+	
+	private void trainModel() {
+        log.info("Build model...");
+        MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
+                .seed(netParams.seed) //include a random seed for reproducibility
+                // use stochastic gradient descent as an optimization algorithm
+                .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
+                .iterations(1)
+                .learningRate(0.006) //specify the learning rate
+                .updater(Updater.NESTEROVS).momentum(0.9) //specify the rate of change of the learning rate.
+                .regularization(true).l2(1e-4)
+                .list()
+                .layer(0, new DenseLayer.Builder() //create the first, input layer with xavier initialization
+                        .nIn(netParams.numRowsIn * netParams.numColsIn)
+                        .nOut(1000)
+                        .activation(Activation.RELU)
+                        .weightInit(WeightInit.XAVIER)
+                        .build())
+                .layer(1, new OutputLayer.Builder(LossFunction.NEGATIVELOGLIKELIHOOD) //create hidden layer
+                        .nIn(1000)
+                        .nOut(netParams.numClasses)
+                        .activation(Activation.SOFTMAX)
+                        .weightInit(WeightInit.XAVIER)
+                        .name("objective")
+                        .build())
+                .pretrain(false).backprop(true) //use backpropagation to adjust weights
+                .build();
+        MultiLayerNetwork model = new MultiLayerNetwork(conf);
+        model.init();
+        model.setListeners(new ProgressPlotListener(10, log, 50));
+
+        String tempDir = System.getProperty("user.home");
+        //String exampleDirectory = FilenameUtils.concat(tempDir, "TrainedNetworks/");
+        EarlyStoppingModelSaver saver = new LocalFileModelSaver(tempDir);
+        EarlyStoppingConfiguration esConf = new EarlyStoppingConfiguration.Builder()
+                .epochTerminationConditions(new MaxEpochsTerminationCondition(50)) //Max of 50 epochs
+                .evaluateEveryNEpochs(1)
+                .iterationTerminationConditions(trainInterrupt) //Max of 20 minutes
+                .scoreCalculator(new DataSetLossCalculator(testData, true))     //Calculate test set score
+                .modelSaver(saver)
+                .build();
+        
+        EarlyStoppingTrainer trainer = new EarlyStoppingTrainer(esConf,model,trainData);
+        
+        trainer.fit();
+	}
+	
+	private class TrainInterrupt implements IterationTerminationCondition {
+		private boolean guiInterrupt = false;
+		
+		@Override
+		public void initialize() {
+			guiInterrupt = false;
+		}
+		
+		public void interrupt() {
+			log.info("Training interruption requested...");
+			guiInterrupt = true;
+		}
+
+		@Override
+		public boolean terminate(double lastMiniBatchScore) {
+			if (guiInterrupt) {
+				log.info("Sending interruption request...");
+			}
+			return guiInterrupt;
+		}
+		
 	}
 
 	public void setOps(OpService ops) {
