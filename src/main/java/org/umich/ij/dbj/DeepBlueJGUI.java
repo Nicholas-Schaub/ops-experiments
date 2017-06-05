@@ -291,6 +291,7 @@ public class DeepBlueJGUI extends JDialog{
 	
 	private void trainModel() {
         log.info("Build model...");
+        ProgressPlotListener listener = new ProgressPlotListener(10, log, 50);
         MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
                 .seed(netParams.seed) //include a random seed for reproducibility
                 // use stochastic gradient descent as an optimization algorithm
@@ -317,7 +318,7 @@ public class DeepBlueJGUI extends JDialog{
                 .build();
         MultiLayerNetwork model = new MultiLayerNetwork(conf);
         model.init();
-        model.setListeners(new ProgressPlotListener(10, log, 50));
+        model.setListeners(listener);
 
         String tempDir = System.getProperty("user.home");
         //String exampleDirectory = FilenameUtils.concat(tempDir, "TrainedNetworks/");
@@ -331,6 +332,7 @@ public class DeepBlueJGUI extends JDialog{
                 .build();
         
         EarlyStoppingTrainer trainer = new EarlyStoppingTrainer(esConf,model,trainData);
+        trainer.setListener(listener);
         
         trainer.fit();
 	}
