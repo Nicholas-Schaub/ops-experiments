@@ -164,5 +164,16 @@ Wisconsin-Madison, University of Konstanz and Brian Northan.</license.copyrightO
 			<artifactId>nd4j-x86</artifactId>
 			<version>0.4-rc3.8</version>
 		</dependency>
+		<dependency>
+			<groupId>org.knowm.xchart</groupId>
+			<artifactId>xchart-parent</artifactId>
+			<version>3.3.0</version>
+			<type>pom</type>
+		</dependency>
+		<dependency>
+			<groupId>org.knowm.xchart</groupId>
+			<artifactId>xchart</artifactId>
+			<version>3.3.0</version>
+		</dependency>
 	</dependencies>
 </project>
