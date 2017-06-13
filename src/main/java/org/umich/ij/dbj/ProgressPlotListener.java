@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 
 import org.deeplearning4j.earlystopping.EarlyStoppingConfiguration;
 import org.deeplearning4j.earlystopping.EarlyStoppingResult;
@@ -12,11 +12,10 @@ import org.deeplearning4j.earlystopping.listener.EarlyStoppingListener;
 import org.deeplearning4j.eval.Evaluation;
 import org.deeplearning4j.nn.api.Model;
 import org.deeplearning4j.optimize.api.TrainingListener;
-import org.knowm.xchart.XChartPanel;
+import org.knowm.xchart.SwingWrapper;
 import org.knowm.xchart.XYChart;
 import org.knowm.xchart.style.Styler.ChartTheme;
 import org.nd4j.linalg.api.ndarray.INDArray;
-import org.python.modules.time.Time;
 import org.scijava.log.LogService;
 
 import ij.gui.Plot;
@@ -32,6 +31,7 @@ implements TrainingListener, EarlyStoppingListener {
 	
 	// Charting objects
 	private XYChart progressChart;
+	private SwingWrapper<XYChart> chartPanel;
 	
 	private long trainIterCount = 0;
 	private long totalTrainIter = 0;
@@ -53,7 +53,6 @@ implements TrainingListener, EarlyStoppingListener {
 		this.log = log;
 		this.logFrequency = logFrequency;
 		trainScore.add((double) 0);
-		testScore.add((double) 0);
 		epochInd.add((double) 1);
 	}
 
@@ -98,48 +97,57 @@ implements TrainingListener, EarlyStoppingListener {
 		double[] epochs = new double[epochInd.size()];
 		double[] train = new double[trainScore.size()];
 		double[] test = new double[testScore.size()];
+		log.info("Creating double arrays...");
+		log.info("epochs.length: " + epochs.length);
+		log.info("trainScore.length: " + train.length);
+		log.info("test.length: " + test.length);
 		for (int i = 0; i < epochs.length; i++) {
+			log.info(i);
+			log.info("epochInd");
 			epochs[i] = (double) epochInd.get(i);
+			log.info("trainScore");
 			train[i] = (double) trainScore.get(i);
+			log.info("testScore");
 			test[i] = (double) testScore.get(i);
+			log.info("Done");
 		}
 		
 		log.info("Drawing train scores...");
-		if (progressChart==null) {	
+		if (progressChart==null) {
+			log.info("XYChart...");
 			progressChart = new XYChart(800,600,ChartTheme.GGPlot2);
+			log.info("XYChart Title...");
 			progressChart.setTitle("Training Progress");
+			log.info("XYChart Epochs...");
 			progressChart.setXAxisTitle("Epochs");
+			log.info("XYChart Objective...");
 			progressChart.setYAxisTitle("Objective");
-			progressChart.addSeries("Train Data", epochs, train);
-			progressChart.addSeries("Test Data", epochs, test);
-			XChartPanel<XYChart> chartPanel = new XChartPanel<XYChart>(progressChart);
-			JFrame frame = new JFrame("Training Progress");
-			frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-			frame.add(chartPanel);
-			frame.setVisible(true);
-			Time.sleep(500);
+			log.info("XYChart TrainData...");
+			progressChart.addSeries("train", epochs, train);
+			log.info("XYChart TestData...");
+			progressChart.addSeries("test", epochs, test);
+			log.info("invokeLater...");
+			//SwingUtilities.invokeLater(() -> {
+			log.info("Creating swing wrapper...");
+			chartPanel = new SwingWrapper<XYChart>(progressChart);
+			log.info("Displaying chart...");
+			chartPanel.displayChart();
+//			});
+//			JFrame frame = new JFrame("Training Progress");
+//			frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//			frame.add(chartPanel);
+//			frame.setVisible(true);
+//			Time.sleep(500);
 		} else {
-			progressChart.updateXYSeries("Train Data", epochs, train, null);
-			progressChart.updateXYSeries("Test Data", epochs, test,null);
-			Time.sleep(500);
+			log.info("UpdateXYSeries...");
+			progressChart.updateXYSeries("train", epochs, train, null);
+			progressChart.updateXYSeries("test", epochs, test,null);
+			log.info("Repaint...");
+			chartPanel.repaintChart();
+//			Time.sleep(500);
 		}
-
-		//plot = new Plot("Training Progress","Epoch","Objective",epochs,train,Plot.CROSS);
-		//plot.setLimits(epochInd.get(0)-1, epochInd.get(epochInd.size()-1)+1, Collections.min(trainScore)*1.1, Collections.max(trainScore)*0.9);
-		//log.info("Drawing train scores...");
-		//plot.setColor(Color.BLACK);
-		//plot.addPoints(epochs, train,Plot.LINE);
-		//plot.draw();
-		//log.info("Drawing test scores...");
-		//plot.setColor(Color.RED);
-		//plot.addPoints(epochs, test,Plot.CROSS);
-		//if (plotWin==null) {
-		//	plotWin = plot.show();
-		//} else {
-		//	plotWin.drawPlot(plot);
-		//}
-		//plotWin.draw();
 		epochInd.add(epochInd.get(epochInd.size()-1)+1);
+		trainScore.add((double) 0);
 		trainIterCount = 0;
 	}
 
