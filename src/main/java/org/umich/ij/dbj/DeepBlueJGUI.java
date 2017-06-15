@@ -12,6 +12,7 @@ import java.io.File;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
 import javax.swing.UIManager;
@@ -45,7 +46,6 @@ import org.scijava.ui.UIService;
 import org.umich.ij.guitools.DirectoryChooserPanel;
 
 import ij.ImagePlus;
-import net.imagej.ImageJ;
 import net.imagej.ops.OpService;
 import net.imagej.ops.experiments.ConvertersUtility;
 import net.imglib2.IterableInterval;
@@ -76,8 +76,25 @@ public class DeepBlueJGUI extends JDialog{
 	// Visualize data panel
 	private JPanel visDataPanel;
 	private JButton showAllClasses;
-	
-	// Start/Stop Network Buttons
+
+	// Network Training Panel
+	private JLabel trainDataNameLabel;
+	private JLabel trainDataName;
+	private JLabel trainEpochsLabel;
+	private JLabel trainEpochs;
+	private JLabel trainBatchSizeLabel;
+	private JLabel trainBatchSize;
+	private JLabel trainSeedLabel;
+	private JLabel trainSeed;
+	private JPanel trainingPanel;
+	private JLabel modelNumClassLabel;
+	private JLabel modelNumClass;
+	private JLabel modelInpWidthLabel;
+	private JLabel modelInpWidth;
+	private JLabel modelInpHeightLabel;
+	private JLabel modelInpHeight;
+	private JLabel modelTypeLabel;
+	private JLabel modelType;
 	private JButton startTraining;
 	private JButton stopTraining;
 	
@@ -85,7 +102,8 @@ public class DeepBlueJGUI extends JDialog{
 	private String currentDataSet;
 	private DataSetIterator trainData;
 	private DataSetIterator testData;
-	private NetworkParams netParams;
+	private TrainingParams trainingParams;
+	private ModelParams modelParams;
 	
 	// Training Interrupter
 	private TrainInterrupt trainInterrupt = new TrainInterrupt();
@@ -95,16 +113,12 @@ public class DeepBlueJGUI extends JDialog{
 		DeepBlueJGUI.setDefaultLookAndFeelDecorated(true);
 		
 		this.setTitle("DeepBlueJ - Alpha");
-		this.setSize(new Dimension(501,283));
+		this.setSize(new Dimension(501,501));
 		this.setLayout(new GridBagLayout());
 		
 		initElements();
 		drawElements();
 		initListeners();
-		
-		ImageJ ij = new ImageJ();
-		
-		
 	}
 	
 	private void initElements() {
@@ -112,7 +126,6 @@ public class DeepBlueJGUI extends JDialog{
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException
 				| UnsupportedLookAndFeelException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
@@ -162,8 +175,9 @@ public class DeepBlueJGUI extends JDialog{
 		c.ipady = 0;
 		c.ipadx = 0;
 		c.gridwidth = 2;
+		c.gridheight = 1;
 		c.weightx = 1;
-		c.weighty = 1;
+		c.weighty = 0;
 		c.gridx = 0;
 		c.gridy = 0;
 		
@@ -191,6 +205,7 @@ public class DeepBlueJGUI extends JDialog{
 		c.ipady = 10;
 		c.gridy = 2;
 		c.gridwidth = 1;
+		c.weighty = 1;
 		c.anchor = GridBagConstraints.NORTHEAST;
 		this.add(startTraining, c);
 		c.gridx++;
@@ -229,13 +244,15 @@ public class DeepBlueJGUI extends JDialog{
 					
 					currentDataSet = "MNIST";
 					
-					netParams = new NetworkParams();
-					netParams.numColsIn = 28;
-					netParams.numRowsIn = 28;
-					netParams.numClasses = 10;
+					modelParams = new ModelParams();
+					modelParams.numColsIn = 28;
+					modelParams.numRowsIn = 28;
+					modelParams.numClasses = 10;
 					
-					trainData = DemoData.getTrainData(currentDataSet,netParams);
-					testData = DemoData.getTestData(currentDataSet,netParams);
+					trainingParams = new TrainingParams();
+					
+					trainData = DemoData.getTrainData(currentDataSet,trainingParams);
+					testData = DemoData.getTestData(currentDataSet,trainingParams);
 					
 					if (trainData==null) {
 						log.error("Failed to load MNIST train data.");
@@ -265,9 +282,9 @@ public class DeepBlueJGUI extends JDialog{
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				trainData.reset();
-				ArrayImg<FloatType,FloatArray> ip = ArrayImgs.floats(netParams.numColsIn,netParams.numRowsIn,netParams.numClasses);
+				ArrayImg<FloatType,FloatArray> ip = ArrayImgs.floats(modelParams.numColsIn,modelParams.numRowsIn,modelParams.numClasses);
 				DataSet example = trainData.next(1);
-				for (int i = 0; i<netParams.numClasses; i++) {
+				for (int i = 0; i<modelParams.numClasses; i++) {
 					while (example.outcome()!=i) {
 						example = trainData.next(1);
 						if (!trainData.hasNext()) {
@@ -278,7 +295,7 @@ public class DeepBlueJGUI extends JDialog{
 						INDArray img = example.getFeatures();
 						IterableInterval<FloatType> ipv = Views.interval(ip,
 																		 new long[] {0,0,i},
-																		 new long[] {netParams.numColsIn-1,netParams.numRowsIn-1,i});
+																		 new long[] {modelParams.numColsIn-1,modelParams.numRowsIn-1,i});
 						ConvertersUtility.INDArrayToIIFloat2D(img, ipv);
 					}
 				}
@@ -293,7 +310,7 @@ public class DeepBlueJGUI extends JDialog{
         log.info("Build model...");
         ProgressPlotListener listener = new ProgressPlotListener(10, log, 50);
         MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
-                .seed(netParams.seed) //include a random seed for reproducibility
+                .seed(trainingParams.seed) //include a random seed for reproducibility
                 // use stochastic gradient descent as an optimization algorithm
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .iterations(1)
@@ -302,14 +319,14 @@ public class DeepBlueJGUI extends JDialog{
                 .regularization(true).l2(1e-4)
                 .list()
                 .layer(0, new DenseLayer.Builder() //create the first, input layer with xavier initialization
-                        .nIn(netParams.numRowsIn * netParams.numColsIn)
+                        .nIn(modelParams.numRowsIn * modelParams.numColsIn)
                         .nOut(1000)
                         .activation(Activation.RELU)
                         .weightInit(WeightInit.XAVIER)
                         .build())
                 .layer(1, new OutputLayer.Builder(LossFunction.NEGATIVELOGLIKELIHOOD) //create hidden layer
                         .nIn(1000)
-                        .nOut(netParams.numClasses)
+                        .nOut(modelParams.numClasses)
                         .activation(Activation.SOFTMAX)
                         .weightInit(WeightInit.XAVIER)
                         .name("objective")

@@ -20,13 +20,13 @@ public class DemoData {
 		DemoData.demoDir = demoDir;
 	}
 	
-	public static DataSetIterator getTrainData(String dataSet,NetworkParams netParams) {
+	public static DataSetIterator getTrainData(String dataSet,TrainingParams trainParams) {
 		dataSet = dataSet.toUpperCase();
 		if (Arrays.asList(DemoDataSets).contains(dataSet)) {
 			switch (dataSet) {
 				case "MNIST":
 					try {
-						return new MnistDataSetIterator(netParams.batchSize,true,netParams.seed);
+						return new MnistDataSetIterator(trainParams.batchSize,true,trainParams.seed);
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
@@ -38,13 +38,13 @@ public class DemoData {
 		}
 	}
 	
-	public static DataSetIterator getTestData(String dataSet,NetworkParams netParams) {
+	public static DataSetIterator getTestData(String dataSet,TrainingParams trainParams) {
 		dataSet = dataSet.toUpperCase();
 		if (Arrays.asList(DemoDataSets).contains(dataSet)) {
 			switch (dataSet) {
 				case "MNIST":
 					try {
-						return new MnistDataSetIterator(netParams.batchSize,false,netParams.seed);
+						return new MnistDataSetIterator(trainParams.batchSize,false,trainParams.seed);
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
