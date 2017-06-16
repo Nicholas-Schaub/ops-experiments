@@ -44,6 +44,7 @@ import org.scijava.log.LogService;
 import org.scijava.thread.ThreadService;
 import org.scijava.ui.UIService;
 import org.umich.ij.guitools.DirectoryChooserPanel;
+import org.umich.ij.guitools.TextFieldInputPanel;
 import org.umich.ij.guitools.ValidatedTextField;
 import org.umich.ij.guitools.ValidatorInt;
 
@@ -90,13 +91,13 @@ public class DeepBlueJGUI extends JDialog{
 	private JPanel trainingPanel;
 	private JLabel trainDataNameLabel;
 	private JLabel trainDataName;
-	private ValidatedTextField<ValidatorInt> trainEpochs;
+	private TextFieldInputPanel<Integer> trainEpochs;
 	private JLabel trainNumTrainLabel;
 	private JLabel trainNumTrain;
-	private ValidatedTextField<ValidatorInt> trainBatchSize;
+	private TextFieldInputPanel<Integer> trainBatchSize;
 	private JLabel trainNumTestLabel;
 	private JLabel trainNumTest;
-	private ValidatedTextField<ValidatorInt> trainSeed;
+	private TextFieldInputPanel<Integer> trainSeed;
 	private JButton showAllClasses;
 	private JButton showTestImage;
 	private JButton startTraining;
@@ -107,7 +108,7 @@ public class DeepBlueJGUI extends JDialog{
 	private DataSetIterator trainData;
 	private DataSetIterator testData;
 	private TrainingParams trainingParams = new TrainingParams();
-	private ModelParams modelParams;
+	private ModelParams modelParams = new ModelParams();
 	
 	// Training Interrupter
 	private TrainInterrupt trainInterrupt = new TrainInterrupt();
@@ -117,7 +118,7 @@ public class DeepBlueJGUI extends JDialog{
 		DeepBlueJGUI.setDefaultLookAndFeelDecorated(true);
 		
 		this.setTitle("DeepBlueJ - Alpha");
-		this.setSize(new Dimension(501,501));
+		this.setSize(new Dimension(451,421));
 		this.setLayout(new GridBagLayout());
 		
 		initElements();
@@ -145,26 +146,34 @@ public class DeepBlueJGUI extends JDialog{
 			mnist.setFocusable(false);
 			dataDirectory = new DirectoryChooserPanel("Save Directory: ",
 													  ij.IJ.getDirectory("home") + "DeepBlueJ Demo Data" + File.separator,
-													  20);
+													  30);
 			dataDirectory.setToolTipText("Select a directory to download and unpack data to.");
 			loadButton = new JButton("Load Data");
 			loadButton.setFocusPainted(false);
 			loadButton.setFocusable(false);
-			
+
+		modelPanel = new JPanel(new GridBagLayout());
+		modelPanel.setBorder(BorderFactory.createTitledBorder("Model Settings"));
+			modelTypeLabel = new JLabel("Model Type: ");
+			modelType = new JLabel(Integer.toString(modelParams.modelType));
+			modelNumClassLabel = new JLabel("# of Labels: ");
+			modelNumClass = new JLabel(Integer.toString(modelParams.numClasses));
+			modelInpWidthLabel = new JLabel("Input Width: ");
+			modelInpWidth = new JLabel(Integer.toString(modelParams.numColsIn));
+			modelInpHeightLabel = new JLabel("Input Height: ");
+			modelInpHeight = new JLabel(Integer.toString(modelParams.numRowsIn));
+
 		trainingPanel = new JPanel(new GridBagLayout());
 		trainingPanel.setBorder(BorderFactory.createTitledBorder("Training Settings"));
 			trainDataNameLabel = new JLabel("Training Data: ");
 			trainDataName = new JLabel(trainingParams.dataName);
-			trainEpochs = new ValidatedTextField(9, "# of Epochs", new ValidatorInt(1,1000000));
-			trainEpochs.setText(Integer.toString(trainingParams.numEpochs));
+			trainEpochs = new TextFieldInputPanel<Integer>("# of Epochs: ",Integer.toString(trainingParams.numEpochs),13, new ValidatorInt(1,1000000));
 			trainNumTrainLabel = new JLabel("# of Train Images: ");
 			trainNumTrain = new JLabel("None");
-			trainBatchSize = new ValidatedTextField(9, "Batch Size: ", new ValidatorInt(1,256));
-			trainBatchSize.setText(Integer.toString(trainingParams.batchSize));
+			trainBatchSize = new TextFieldInputPanel<Integer>("Batch Size: ",Integer.toString(trainingParams.batchSize),13, new ValidatorInt(1,256));
 			trainNumTestLabel = new JLabel("# of Test Images: ");
 			trainNumTest = new JLabel("None");
-			trainSeed = new ValidatedTextField(9, "Random Seed: ", new ValidatorInt(Integer.MIN_VALUE,Integer.MAX_VALUE));
-			trainSeed.setText(Integer.toString(trainingParams.seed));
+			trainSeed = new TextFieldInputPanel<Integer>("Random Seed: ",Integer.toString(trainingParams.seed),13, new ValidatorInt(Integer.MIN_VALUE,Integer.MAX_VALUE));
 			showAllClasses = new JButton("Show Each Class");
 			showAllClasses.setToolTipText("Display a representative image for each class.");
 			showAllClasses.setFocusPainted(false);
@@ -181,8 +190,6 @@ public class DeepBlueJGUI extends JDialog{
 			stopTraining.setFocusPainted(false);
 			stopTraining.setFocusable(false);
 			stopTraining.setForeground(new Color(203,43,37));
-
-		
 	}
 	
 	private void drawElements() {
@@ -190,16 +197,19 @@ public class DeepBlueJGUI extends JDialog{
 		GridBagConstraints c = new GridBagConstraints();
 		c.insets = new Insets(1,1,1,1);
 		c.anchor = GridBagConstraints.NORTH;
-		c.fill = GridBagConstraints.HORIZONTAL;
+		c.fill = GridBagConstraints.BOTH;
 		c.ipady = 0;
 		c.ipadx = 0;
 		c.gridwidth = 2;
 		c.gridheight = 1;
 		c.weightx = 1;
-		c.weighty = 0;
+		c.weighty = 1;
 		c.gridx = 0;
 		c.gridy = 0;
 		
+		//
+		// Demo data panel
+		//
 		this.add(demoDataPanel,c);
 		c.fill = GridBagConstraints.NONE;
 		demoDataPanel.add(mnist, c);
@@ -210,35 +220,125 @@ public class DeepBlueJGUI extends JDialog{
 		c.gridy++;
 		demoDataPanel.add(loadButton, c);
 		
+		//
+		// Model Panel
+		//
 		c.gridy = 1;
 		c.gridwidth = 2;
-		c.fill = GridBagConstraints.HORIZONTAL;
-		this.add(trainingPanel,c);
+		c.fill = GridBagConstraints.BOTH;
+		c.anchor = GridBagConstraints.NORTH;
+		this.add(modelPanel,c);
+		
 		c.fill = GridBagConstraints.NONE;
 		c.gridy = 0;
 		c.ipadx = 2;
 		c.ipady = 2;
-		c.weightx = 0.5;
+		c.gridwidth = 1;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelTypeLabel, c);
+		c.anchor = GridBagConstraints.WEST;
+		c.gridx++;
+		modelPanel.add(modelType, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelNumClassLabel, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelNumClass, c);
+		
+		c.gridy++;
+		c.gridx = 0;
+		c.gridwidth = 1;
+		c.fill = GridBagConstraints.NONE;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelInpWidthLabel, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelInpWidth,c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelInpHeightLabel, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelInpHeight, c);
+		
+		//
+		// Training Panel
+		//
+		c.gridy = 2;
+		c.gridwidth = 2;
+		c.gridx = 0;
+		c.fill = GridBagConstraints.BOTH;
+		c.anchor = GridBagConstraints.NORTH;
+		this.add(trainingPanel,c);
+		
+		c.fill = GridBagConstraints.NONE;
+		c.gridy = 0;
+		c.ipadx = 2;
+		c.ipady = 2;
+		c.gridwidth = 1;
 		c.anchor = GridBagConstraints.EAST;
 		trainingPanel.add(trainDataNameLabel, c);
 		c.anchor = GridBagConstraints.WEST;
 		c.gridx++;
 		trainingPanel.add(trainDataName, c);
 		c.gridx++;
-		c.weightx = 1;
-		c.fill = GridBagConstraints.HORIZONTAL;
+		c.gridwidth = 2;
+		c.anchor = GridBagConstraints.CENTER;
+		c.fill = GridBagConstraints.NONE;
 		trainingPanel.add(trainEpochs, c);
 		
+		c.gridy++;
+		c.gridx = 0;
+		c.gridwidth = 1;
+		c.fill = GridBagConstraints.NONE;
+		c.anchor = GridBagConstraints.EAST;
+		trainingPanel.add(trainNumTrainLabel, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.WEST;
+		trainingPanel.add(trainNumTrain,c);
+		c.gridx++;
+		c.gridwidth = 2;
+		c.anchor = GridBagConstraints.CENTER;
+		c.fill = GridBagConstraints.NONE;
+		trainingPanel.add(trainBatchSize, c);
+		
+		c.gridy++;
+		c.gridx = 0;
+		c.gridwidth = 1;
+		c.fill = GridBagConstraints.NONE;
+		c.anchor = GridBagConstraints.EAST;
+		trainingPanel.add(trainNumTestLabel, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.WEST;
+		trainingPanel.add(trainNumTest,c);
+		c.gridx++;
+		c.gridwidth = 2;
+		c.anchor = GridBagConstraints.CENTER;
+		c.fill = GridBagConstraints.NONE;
+		trainingPanel.add(trainSeed, c);
+		
+		c.gridy++;
+		c.gridx = 1;
+		c.gridwidth = 1;
+		c.fill = GridBagConstraints.NONE;
+		c.anchor = GridBagConstraints.EAST;
+		trainingPanel.add(showAllClasses, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.WEST;
+		trainingPanel.add(showTestImage,c);
+		
+		c.gridy++;
 		c.ipadx = 10;
 		c.ipady = 10;
-		c.gridy = 2;
+		c.gridx = 1;
 		c.gridwidth = 1;
-		c.weighty = 1;
-		c.anchor = GridBagConstraints.NORTHEAST;
-		this.add(startTraining, c);
+		c.fill = GridBagConstraints.NONE;
+		c.anchor = GridBagConstraints.EAST;
+		trainingPanel.add(startTraining, c);
 		c.gridx++;
-		c.anchor = GridBagConstraints.NORTHWEST;
-		this.add(stopTraining, c);
+		c.anchor = GridBagConstraints.WEST;
+		trainingPanel.add(stopTraining,c);
 		
 		this.setLocationRelativeTo(null);
 	}
@@ -272,7 +372,6 @@ public class DeepBlueJGUI extends JDialog{
 					
 					currentDataSet = "MNIST";
 					
-					modelParams = new ModelParams();
 					modelParams.numColsIn = 28;
 					modelParams.numRowsIn = 28;
 					modelParams.numClasses = 10;
@@ -333,6 +432,9 @@ public class DeepBlueJGUI extends JDialog{
 	}
 	
 	private void trainModel() {
+		log.info("Setting training parameters...");
+		updateTrainingParams();
+		
         log.info("Build model...");
         ProgressPlotListener listener = new ProgressPlotListener(10, log, 50);
         MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
@@ -367,7 +469,7 @@ public class DeepBlueJGUI extends JDialog{
         //String exampleDirectory = FilenameUtils.concat(tempDir, "TrainedNetworks/");
         EarlyStoppingModelSaver saver = new LocalFileModelSaver(tempDir);
         EarlyStoppingConfiguration esConf = new EarlyStoppingConfiguration.Builder()
-                .epochTerminationConditions(new MaxEpochsTerminationCondition(50)) //Max of 50 epochs
+                .epochTerminationConditions(new MaxEpochsTerminationCondition(trainingParams.numEpochs))
                 .evaluateEveryNEpochs(1)
                 .iterationTerminationConditions(trainInterrupt) //Max of 20 minutes
                 .scoreCalculator(new DataSetLossCalculator(testData, true))     //Calculate test set score
@@ -378,6 +480,18 @@ public class DeepBlueJGUI extends JDialog{
         trainer.setListener(listener);
         
         trainer.fit();
+	}
+	
+	private void updateTrainingParams() {
+		trainingParams.batchSize = trainBatchSize.getValue();
+		trainingParams.seed = trainSeed.getValue();
+		trainingParams.numEpochs = trainSeed.getValue();
+	}
+	
+	private void updateModelParams() {
+		modelParams.modelType = Integer.parseInt(modelType.getText());
+		modelParams.numClasses = Integer.parseInt(modelNumClass.getText());
+		modelParams.numClasses = Integer.parseInt(modelNumClass.getText());
 	}
 	
 	private class TrainInterrupt implements IterationTerminationCondition {
