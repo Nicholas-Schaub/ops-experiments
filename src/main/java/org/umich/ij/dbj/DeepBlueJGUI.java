@@ -44,6 +44,8 @@ import org.scijava.log.LogService;
 import org.scijava.thread.ThreadService;
 import org.scijava.ui.UIService;
 import org.umich.ij.guitools.DirectoryChooserPanel;
+import org.umich.ij.guitools.ValidatedTextField;
+import org.umich.ij.guitools.ValidatorInt;
 
 import ij.ImagePlus;
 import net.imagej.ops.OpService;
@@ -73,20 +75,8 @@ public class DeepBlueJGUI extends JDialog{
 	private JButton loadButton;
 	private JToggleButton mnist;
 	
-	// Visualize data panel
-	private JPanel visDataPanel;
-	private JButton showAllClasses;
-
-	// Network Training Panel
-	private JLabel trainDataNameLabel;
-	private JLabel trainDataName;
-	private JLabel trainEpochsLabel;
-	private JLabel trainEpochs;
-	private JLabel trainBatchSizeLabel;
-	private JLabel trainBatchSize;
-	private JLabel trainSeedLabel;
-	private JLabel trainSeed;
-	private JPanel trainingPanel;
+	// Model panel
+	private JPanel modelPanel;
 	private JLabel modelNumClassLabel;
 	private JLabel modelNumClass;
 	private JLabel modelInpWidthLabel;
@@ -95,6 +85,20 @@ public class DeepBlueJGUI extends JDialog{
 	private JLabel modelInpHeight;
 	private JLabel modelTypeLabel;
 	private JLabel modelType;
+
+	// Network Training Panel
+	private JPanel trainingPanel;
+	private JLabel trainDataNameLabel;
+	private JLabel trainDataName;
+	private ValidatedTextField<ValidatorInt> trainEpochs;
+	private JLabel trainNumTrainLabel;
+	private JLabel trainNumTrain;
+	private ValidatedTextField<ValidatorInt> trainBatchSize;
+	private JLabel trainNumTestLabel;
+	private JLabel trainNumTest;
+	private ValidatedTextField<ValidatorInt> trainSeed;
+	private JButton showAllClasses;
+	private JButton showTestImage;
 	private JButton startTraining;
 	private JButton stopTraining;
 	
@@ -102,7 +106,7 @@ public class DeepBlueJGUI extends JDialog{
 	private String currentDataSet;
 	private DataSetIterator trainData;
 	private DataSetIterator testData;
-	private TrainingParams trainingParams;
+	private TrainingParams trainingParams = new TrainingParams();
 	private ModelParams modelParams;
 	
 	// Training Interrupter
@@ -147,22 +151,37 @@ public class DeepBlueJGUI extends JDialog{
 			loadButton.setFocusPainted(false);
 			loadButton.setFocusable(false);
 			
-		visDataPanel = new JPanel(new GridBagLayout());
-		visDataPanel.setBorder(BorderFactory.createTitledBorder("Visualize Data"));
+		trainingPanel = new JPanel(new GridBagLayout());
+		trainingPanel.setBorder(BorderFactory.createTitledBorder("Training Settings"));
+			trainDataNameLabel = new JLabel("Training Data: ");
+			trainDataName = new JLabel(trainingParams.dataName);
+			trainEpochs = new ValidatedTextField(9, "# of Epochs", new ValidatorInt(1,1000000));
+			trainEpochs.setText(Integer.toString(trainingParams.numEpochs));
+			trainNumTrainLabel = new JLabel("# of Train Images: ");
+			trainNumTrain = new JLabel("None");
+			trainBatchSize = new ValidatedTextField(9, "Batch Size: ", new ValidatorInt(1,256));
+			trainBatchSize.setText(Integer.toString(trainingParams.batchSize));
+			trainNumTestLabel = new JLabel("# of Test Images: ");
+			trainNumTest = new JLabel("None");
+			trainSeed = new ValidatedTextField(9, "Random Seed: ", new ValidatorInt(Integer.MIN_VALUE,Integer.MAX_VALUE));
+			trainSeed.setText(Integer.toString(trainingParams.seed));
 			showAllClasses = new JButton("Show Each Class");
 			showAllClasses.setToolTipText("Display a representative image for each class.");
 			showAllClasses.setFocusPainted(false);
 			showAllClasses.setFocusable(false);
-		
-		// Start and stop training buttons
-		startTraining = new JButton("Start Training");
-		startTraining.setFocusPainted(false);
-		startTraining.setFocusable(false);
-		startTraining.setForeground(new Color(0,171,103));
-		stopTraining = new JButton("Stop Training");
-		stopTraining.setFocusPainted(false);
-		stopTraining.setFocusable(false);
-		stopTraining.setForeground(new Color(203,43,37));
+			showTestImage = new JButton("Show Test Image");
+			showTestImage.setToolTipText("Display a random test image.");
+			showTestImage.setFocusPainted(false);
+			showTestImage.setFocusable(false);
+			startTraining = new JButton("Start Training");
+			startTraining.setFocusPainted(false);
+			startTraining.setFocusable(false);
+			startTraining.setForeground(new Color(0,171,103));
+			stopTraining = new JButton("Stop Training");
+			stopTraining.setFocusPainted(false);
+			stopTraining.setFocusable(false);
+			stopTraining.setForeground(new Color(203,43,37));
+
 		
 	}
 	
@@ -194,12 +213,21 @@ public class DeepBlueJGUI extends JDialog{
 		c.gridy = 1;
 		c.gridwidth = 2;
 		c.fill = GridBagConstraints.HORIZONTAL;
-		this.add(visDataPanel,c);
+		this.add(trainingPanel,c);
 		c.fill = GridBagConstraints.NONE;
 		c.gridy = 0;
 		c.ipadx = 2;
 		c.ipady = 2;
-		visDataPanel.add(showAllClasses, c);
+		c.weightx = 0.5;
+		c.anchor = GridBagConstraints.EAST;
+		trainingPanel.add(trainDataNameLabel, c);
+		c.anchor = GridBagConstraints.WEST;
+		c.gridx++;
+		trainingPanel.add(trainDataName, c);
+		c.gridx++;
+		c.weightx = 1;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		trainingPanel.add(trainEpochs, c);
 		
 		c.ipadx = 10;
 		c.ipady = 10;
@@ -248,8 +276,6 @@ public class DeepBlueJGUI extends JDialog{
 					modelParams.numColsIn = 28;
 					modelParams.numRowsIn = 28;
 					modelParams.numClasses = 10;
-					
-					trainingParams = new TrainingParams();
 					
 					trainData = DemoData.getTrainData(currentDataSet,trainingParams);
 					testData = DemoData.getTestData(currentDataSet,trainingParams);

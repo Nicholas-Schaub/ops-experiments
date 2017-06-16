@@ -8,6 +8,4 @@ public class TrainingParams {
 	public int seed = 1;
 	public int numEpochs = 5;
 	
-	
-	
 }
