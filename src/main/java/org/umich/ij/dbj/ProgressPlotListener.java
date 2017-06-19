@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import javax.swing.SwingUtilities;
+import javax.swing.JProgressBar;
 
 import org.deeplearning4j.earlystopping.EarlyStoppingConfiguration;
 import org.deeplearning4j.earlystopping.EarlyStoppingResult;
@@ -23,6 +23,9 @@ import ij.gui.PlotWindow;
 
 public class ProgressPlotListener
 implements TrainingListener, EarlyStoppingListener {
+	// Progress Monitors for GUI interface
+	private JProgressBar epochProgress = null;
+	private JProgressBar batchProgress = null;
 
 	// Containers for plotting values
 	private List<Double> epochInd = new ArrayList<Double>();
@@ -35,8 +38,9 @@ implements TrainingListener, EarlyStoppingListener {
 	
 	private long trainIterCount = 0;
 	private long totalTrainIter = 0;
+	private int numEpochs;
 	private final Evaluation eval;
-	private LogService log;
+	private LogService log = null;
 	private boolean invoked = false;
 	private int numClasses;
 	private int logFrequency = 0;
@@ -46,14 +50,14 @@ implements TrainingListener, EarlyStoppingListener {
 	public ProgressPlotListener (int numClasses) {
 		this.numClasses = numClasses;
 		eval = new Evaluation(numClasses);
+		trainScore.add((double) 0);
+		epochInd.add((double) 1);
 	}
 	
 	public ProgressPlotListener(int numClasses, LogService log, int logFrequency) {
 		this(numClasses);
 		this.log = log;
 		this.logFrequency = logFrequency;
-		trainScore.add((double) 0);
-		epochInd.add((double) 1);
 	}
 
 	@Override
@@ -74,18 +78,34 @@ implements TrainingListener, EarlyStoppingListener {
 		if (log!=null && trainIterCount%logFrequency==0) {
 			log.info("Train: Epoch " + epochInd.get(epochInd.size()-1) + " (iteration " + trainIterCount + "/" + totalTrainIter + ") Objective: " + score);
 		}
+		if (batchProgress!=null) {
+			batchProgress.setValue((int) trainIterCount);
+			batchProgress.setString("Batch: " + Long.toString(trainIterCount) + "/" + Long.toString(totalTrainIter));
+		}
 	}
 
 	@Override
 	public void onStart(EarlyStoppingConfiguration esConfig, Model net) {
-
+		if (epochProgress!=null) {
+			int currentEpoch = epochInd.get(epochInd.size()-1).intValue();
+			epochProgress.setValue(currentEpoch);
+			epochProgress.setString("Epoch: " + Integer.toString(currentEpoch) + "/" + Integer.toString(numEpochs));
+		}
 	}
 
 	@Override
 	public void onEpoch(int epochNum, double score, EarlyStoppingConfiguration esConfig, Model net) {
-		log.info("onEpoch");
 		testScore.add(score);
 		processEpoch(trainIterCount);
+		if (epochProgress!=null) {
+			int currentEpoch = epochInd.get(epochInd.size()-1).intValue();
+			epochProgress.setValue(currentEpoch);
+			epochProgress.setString("Epoch: " + Integer.toString(currentEpoch) + "/" + Long.toString(numEpochs));
+		}
+		if (batchProgress!=null) {
+			batchProgress.setValue((int) trainIterCount);
+			batchProgress.setString("Batch: " + Long.toString(trainIterCount) + "/" + Long.toString(totalTrainIter));
+		}
 	}
 	
 	private void processEpoch(long trainIter) {
@@ -97,58 +117,32 @@ implements TrainingListener, EarlyStoppingListener {
 		double[] epochs = new double[epochInd.size()];
 		double[] train = new double[trainScore.size()];
 		double[] test = new double[testScore.size()];
-		log.info("Creating double arrays...");
-		log.info("epochs.length: " + epochs.length);
-		log.info("trainScore.length: " + train.length);
-		log.info("test.length: " + test.length);
 		for (int i = 0; i < epochs.length; i++) {
-			log.info(i);
-			log.info("epochInd");
 			epochs[i] = (double) epochInd.get(i);
-			log.info("trainScore");
 			train[i] = (double) trainScore.get(i);
-			log.info("testScore");
 			test[i] = (double) testScore.get(i);
-			log.info("Done");
 		}
 		
-		log.info("Drawing train scores...");
 		if (progressChart==null) {
-			log.info("XYChart...");
 			progressChart = new XYChart(800,600,ChartTheme.GGPlot2);
-			log.info("XYChart Title...");
 			progressChart.setTitle("Training Progress");
-			log.info("XYChart Epochs...");
 			progressChart.setXAxisTitle("Epochs");
-			log.info("XYChart Objective...");
 			progressChart.setYAxisTitle("Objective");
-			log.info("XYChart TrainData...");
 			progressChart.addSeries("train", epochs, train);
-			log.info("XYChart TestData...");
 			progressChart.addSeries("test", epochs, test);
-			log.info("invokeLater...");
-			//SwingUtilities.invokeLater(() -> {
-			log.info("Creating swing wrapper...");
 			chartPanel = new SwingWrapper<XYChart>(progressChart);
-			log.info("Displaying chart...");
 			chartPanel.displayChart();
-//			});
-//			JFrame frame = new JFrame("Training Progress");
-//			frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-//			frame.add(chartPanel);
-//			frame.setVisible(true);
-//			Time.sleep(500);
 		} else {
-			log.info("UpdateXYSeries...");
 			progressChart.updateXYSeries("train", epochs, train, null);
 			progressChart.updateXYSeries("test", epochs, test,null);
-			log.info("Repaint...");
 			chartPanel.repaintChart();
-//			Time.sleep(500);
 		}
-		epochInd.add(epochInd.get(epochInd.size()-1)+1);
-		trainScore.add((double) 0);
-		trainIterCount = 0;
+		
+		if (numEpochs>epochInd.size()) {
+			epochInd.add(epochInd.get(epochInd.size()-1)+1);
+			trainScore.add((double) 0);
+			trainIterCount = 0;			
+		}
 	}
 
 	@Override
@@ -159,13 +153,11 @@ implements TrainingListener, EarlyStoppingListener {
 
 	@Override
 	public void onEpochStart(Model model) {
-		// TODO Auto-generated method stub
-		
+
 	}
 
 	@Override
 	public void onEpochEnd(Model model) {
-		log.info("onEpochEnd");
 		processEpoch(trainIterCount);
 	}
 
@@ -190,6 +182,22 @@ implements TrainingListener, EarlyStoppingListener {
 	public void onBackwardPass(Model model) {
 		// TODO Auto-generated method stub
 		
+	}
+	
+	public void setNumBatches(int numBatches) {
+		this.totalTrainIter = numBatches;
+	}
+	
+	public void setNumEpochs(int numEpochs) {
+		this.numEpochs = numEpochs;
+	}
+	
+	public void setEpochPMon(JProgressBar epochProgress) {
+		this.epochProgress = epochProgress;
+	}
+	
+	public void setBatchPMon(JProgressBar batchProgress) {
+		this.batchProgress = batchProgress;
 	}
 
 }

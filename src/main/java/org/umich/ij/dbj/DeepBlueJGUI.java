@@ -14,6 +14,7 @@ import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JToggleButton;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
@@ -91,17 +92,22 @@ public class DeepBlueJGUI extends JDialog{
 	private JPanel trainingPanel;
 	private JLabel trainDataNameLabel;
 	private JLabel trainDataName;
-	private TextFieldInputPanel<Integer> trainEpochs;
+	private JLabel trainEpochsLabel;
+	private ValidatedTextField<Integer> trainEpochs;
 	private JLabel trainNumTrainLabel;
 	private JLabel trainNumTrain;
-	private TextFieldInputPanel<Integer> trainBatchSize;
+	private JLabel trainBatchSizeLabel;
+	private ValidatedTextField<Integer> trainBatchSize;
 	private JLabel trainNumTestLabel;
 	private JLabel trainNumTest;
-	private TextFieldInputPanel<Integer> trainSeed;
+	private JLabel trainSeedLabel;
+	private ValidatedTextField<Integer> trainSeed;
 	private JButton showAllClasses;
 	private JButton showTestImage;
 	private JButton startTraining;
 	private JButton stopTraining;
+	private JProgressBar epochProgress;
+	private JProgressBar batchProgress;
 	
 	// DL4J Settings
 	private String currentDataSet;
@@ -167,13 +173,16 @@ public class DeepBlueJGUI extends JDialog{
 		trainingPanel.setBorder(BorderFactory.createTitledBorder("Training Settings"));
 			trainDataNameLabel = new JLabel("Training Data: ");
 			trainDataName = new JLabel(trainingParams.dataName);
-			trainEpochs = new TextFieldInputPanel<Integer>("# of Epochs: ",Integer.toString(trainingParams.numEpochs),13, new ValidatorInt(1,1000000));
+			trainEpochsLabel = new JLabel("# of Epochs: ");
+			trainEpochs = new ValidatedTextField<Integer>(9, Integer.toString(trainingParams.numEpochs),new ValidatorInt(1,1000000));
 			trainNumTrainLabel = new JLabel("# of Train Images: ");
 			trainNumTrain = new JLabel("None");
-			trainBatchSize = new TextFieldInputPanel<Integer>("Batch Size: ",Integer.toString(trainingParams.batchSize),13, new ValidatorInt(1,256));
+			trainBatchSizeLabel = new JLabel("Batch Size: ");
+			trainBatchSize = new ValidatedTextField<Integer>(9, Integer.toString(trainingParams.batchSize),new ValidatorInt(1,256));
 			trainNumTestLabel = new JLabel("# of Test Images: ");
 			trainNumTest = new JLabel("None");
-			trainSeed = new TextFieldInputPanel<Integer>("Random Seed: ",Integer.toString(trainingParams.seed),13, new ValidatorInt(Integer.MIN_VALUE,Integer.MAX_VALUE));
+			trainSeedLabel = new JLabel("Random Seed: ");
+			trainSeed = new ValidatedTextField<Integer>(9, Integer.toString(trainingParams.seed),new ValidatorInt(Integer.MIN_VALUE,Integer.MAX_VALUE));
 			showAllClasses = new JButton("Show Each Class");
 			showAllClasses.setToolTipText("Display a representative image for each class.");
 			showAllClasses.setFocusPainted(false);
@@ -186,6 +195,14 @@ public class DeepBlueJGUI extends JDialog{
 			startTraining.setFocusPainted(false);
 			startTraining.setFocusable(false);
 			startTraining.setForeground(new Color(0,171,103));
+			epochProgress = new JProgressBar(0,trainingParams.numEpochs);
+			epochProgress.setValue(0);
+			epochProgress.setString("-/-");
+			epochProgress.setStringPainted(true);
+			batchProgress = new JProgressBar(0,trainingParams.numEpochs);
+			batchProgress.setValue(0);
+			batchProgress.setString("-/-");
+			batchProgress.setStringPainted(true);
 			stopTraining = new JButton("Stop Training");
 			stopTraining.setFocusPainted(false);
 			stopTraining.setFocusable(false);
@@ -231,8 +248,6 @@ public class DeepBlueJGUI extends JDialog{
 		
 		c.fill = GridBagConstraints.NONE;
 		c.gridy = 0;
-		c.ipadx = 2;
-		c.ipady = 2;
 		c.gridwidth = 1;
 		c.anchor = GridBagConstraints.EAST;
 		modelPanel.add(modelTypeLabel, c);
@@ -274,8 +289,6 @@ public class DeepBlueJGUI extends JDialog{
 		
 		c.fill = GridBagConstraints.NONE;
 		c.gridy = 0;
-		c.ipadx = 2;
-		c.ipady = 2;
 		c.gridwidth = 1;
 		c.anchor = GridBagConstraints.EAST;
 		trainingPanel.add(trainDataNameLabel, c);
@@ -283,9 +296,10 @@ public class DeepBlueJGUI extends JDialog{
 		c.gridx++;
 		trainingPanel.add(trainDataName, c);
 		c.gridx++;
-		c.gridwidth = 2;
-		c.anchor = GridBagConstraints.CENTER;
-		c.fill = GridBagConstraints.NONE;
+		c.anchor = GridBagConstraints.EAST;
+		trainingPanel.add(trainEpochsLabel, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(trainEpochs, c);
 		
 		c.gridy++;
@@ -298,9 +312,10 @@ public class DeepBlueJGUI extends JDialog{
 		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(trainNumTrain,c);
 		c.gridx++;
-		c.gridwidth = 2;
-		c.anchor = GridBagConstraints.CENTER;
-		c.fill = GridBagConstraints.NONE;
+		c.anchor = GridBagConstraints.EAST;
+		trainingPanel.add(trainBatchSizeLabel,c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(trainBatchSize, c);
 		
 		c.gridy++;
@@ -313,9 +328,10 @@ public class DeepBlueJGUI extends JDialog{
 		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(trainNumTest,c);
 		c.gridx++;
-		c.gridwidth = 2;
-		c.anchor = GridBagConstraints.CENTER;
-		c.fill = GridBagConstraints.NONE;
+		c.anchor = GridBagConstraints.EAST;
+		trainingPanel.add(trainSeedLabel,c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(trainSeed, c);
 		
 		c.gridy++;
@@ -327,6 +343,15 @@ public class DeepBlueJGUI extends JDialog{
 		c.gridx++;
 		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(showTestImage,c);
+		
+		c.gridy++;
+		c.gridx = 0;
+		c.gridwidth = 4;
+		c.fill = GridBagConstraints.HORIZONTAL;
+		c.anchor = GridBagConstraints.CENTER;
+		trainingPanel.add(epochProgress, c);
+		c.gridy++;
+		trainingPanel.add(batchProgress,c);
 		
 		c.gridy++;
 		c.ipadx = 10;
@@ -369,7 +394,7 @@ public class DeepBlueJGUI extends JDialog{
 					System.setProperty("user.home", coreDir);
 					
 					long startTime = System.currentTimeMillis();
-					
+
 					currentDataSet = "MNIST";
 					
 					modelParams.numColsIn = 28;
@@ -379,6 +404,10 @@ public class DeepBlueJGUI extends JDialog{
 					trainData = DemoData.getTrainData(currentDataSet,trainingParams);
 					testData = DemoData.getTestData(currentDataSet,trainingParams);
 					
+					trainingParams.dataName = currentDataSet;
+					trainingParams.numTest = testData.numExamples();
+					trainingParams.numTrain = trainData.numExamples();
+					
 					if (trainData==null) {
 						log.error("Failed to load MNIST train data.");
 					} else if (testData==null) {
@@ -386,14 +415,14 @@ public class DeepBlueJGUI extends JDialog{
 					} else {
 						log.info("Loaded MNIST digits in " + Long.toString(System.currentTimeMillis() - startTime) + "ms!");
 					}
-					
+					setTrainingParams();
+					setModelParams();
 				}
 			}
 			
 		});
 		
 		startTraining.addActionListener(new ActionListener() {
-
 
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
@@ -436,7 +465,9 @@ public class DeepBlueJGUI extends JDialog{
 		updateTrainingParams();
 		
         log.info("Build model...");
-        ProgressPlotListener listener = new ProgressPlotListener(10, log, 50);
+		updateModelParams();
+        
+        // Create the model
         MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
                 .seed(trainingParams.seed) //include a random seed for reproducibility
                 // use stochastic gradient descent as an optimization algorithm
@@ -463,7 +494,6 @@ public class DeepBlueJGUI extends JDialog{
                 .build();
         MultiLayerNetwork model = new MultiLayerNetwork(conf);
         model.init();
-        model.setListeners(listener);
 
         String tempDir = System.getProperty("user.home");
         //String exampleDirectory = FilenameUtils.concat(tempDir, "TrainedNetworks/");
@@ -477,21 +507,52 @@ public class DeepBlueJGUI extends JDialog{
                 .build();
         
         EarlyStoppingTrainer trainer = new EarlyStoppingTrainer(esConf,model,trainData);
+        
+		// Set up the Progress listener
+        ProgressPlotListener listener = new ProgressPlotListener(10);
+        int batches = (int) Math.ceil((double) trainingParams.numTrain/(double) trainingParams.batchSize);
+        listener.setNumBatches(batches);
+        batchProgress.setMaximum(batches);
+        listener.setBatchPMon(batchProgress);
+        epochProgress.setMaximum(trainingParams.numEpochs);
+        listener.setEpochPMon(epochProgress);
+        listener.setNumEpochs(trainingParams.numEpochs);
+
+        model.setListeners(listener);
         trainer.setListener(listener);
         
         trainer.fit();
 	}
 	
 	private void updateTrainingParams() {
-		trainingParams.batchSize = trainBatchSize.getValue();
-		trainingParams.seed = trainSeed.getValue();
-		trainingParams.numEpochs = trainSeed.getValue();
+		trainingParams.batchSize = Integer.parseInt(trainBatchSize.getText());
+		trainingParams.seed = Integer.parseInt(trainSeed.getText());
+		trainingParams.numEpochs = Integer.parseInt(trainEpochs.getText());
+		trainData = DemoData.getTrainData(currentDataSet, trainingParams);
+		testData = DemoData.getTestData(currentDataSet, trainingParams);
 	}
 	
 	private void updateModelParams() {
 		modelParams.modelType = Integer.parseInt(modelType.getText());
 		modelParams.numClasses = Integer.parseInt(modelNumClass.getText());
-		modelParams.numClasses = Integer.parseInt(modelNumClass.getText());
+		modelParams.numColsIn = Integer.parseInt(modelInpWidth.getText());
+		modelParams.numRowsIn = Integer.parseInt(modelInpHeight.getText());
+	}
+	
+	private void setTrainingParams() {
+		trainBatchSize.setText(Integer.toString(trainingParams.batchSize));
+		trainSeed.setText(Integer.toString(trainingParams.seed));
+		trainEpochs.setText(Integer.toString(trainingParams.numEpochs));
+		trainDataName.setText(trainingParams.dataName);
+		trainNumTrain.setText(Integer.toString(trainingParams.numTrain));
+		trainNumTest.setText(Integer.toString(trainingParams.numTest));
+	}
+	
+	private void setModelParams() {
+		modelType.setText(Integer.toString(modelParams.modelType));
+		modelNumClass.setText(Integer.toString(modelParams.numClasses));
+		modelInpWidth.setText(Integer.toString(modelParams.numColsIn));
+		modelInpHeight.setText(Integer.toString(modelParams.numRowsIn));
 	}
 	
 	private class TrainInterrupt implements IterationTerminationCondition {
