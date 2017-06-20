@@ -10,12 +10,16 @@ public class ModelParams {
 	
 	public int modelType = 1;
 	
-	// Model Parameters
-	public int numRowsIn;
-	public int numColsIn;
+	// Model Input Parameters
+	public int rowsIn;
+	public int colsIn;
 	public int numClasses;
+	public int numRowsOut;
+	public int numColsOut;
 	
 	public ModelParams() {
 		
 	}
+	
+	
 }

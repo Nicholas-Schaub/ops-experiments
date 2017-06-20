@@ -73,9 +73,17 @@ public class DeepBlueJGUI extends JDialog{
 	
 	// Demo data set load panel & components
 	private JPanel demoDataPanel;
+	private JPanel demoDatasetsPanel;
+	private JToggleButton mnist;
+	private JPanel demoDataInfoPanel;
+	private JLabel demoDataNameLabel;
+	private JLabel demoDataName;
+	private JLabel demoNumTrainLabel;
+	private JLabel demoNumTrain;
+	private JLabel demoNumTestLabel;
+	private JLabel demoNumTest;
 	private DirectoryChooserPanel dataDirectory;
 	private JButton loadButton;
-	private JToggleButton mnist;
 	
 	// Model panel
 	private JPanel modelPanel;
@@ -90,16 +98,10 @@ public class DeepBlueJGUI extends JDialog{
 
 	// Network Training Panel
 	private JPanel trainingPanel;
-	private JLabel trainDataNameLabel;
-	private JLabel trainDataName;
 	private JLabel trainEpochsLabel;
 	private ValidatedTextField<Integer> trainEpochs;
-	private JLabel trainNumTrainLabel;
-	private JLabel trainNumTrain;
 	private JLabel trainBatchSizeLabel;
 	private ValidatedTextField<Integer> trainBatchSize;
-	private JLabel trainNumTestLabel;
-	private JLabel trainNumTest;
 	private JLabel trainSeedLabel;
 	private ValidatedTextField<Integer> trainSeed;
 	private JButton showAllClasses;
@@ -145,18 +147,28 @@ public class DeepBlueJGUI extends JDialog{
 		
 		// Create the download subpanel
 		demoDataPanel = new JPanel(new GridBagLayout());
-		demoDataPanel.setBorder(BorderFactory.createTitledBorder("Load Demo Data"));
-			mnist = new JToggleButton("MNIST");
-			mnist.setToolTipText("Load the MNIST digits dataset.");
-			mnist.setFocusPainted(false);
-			mnist.setFocusable(false);
-			dataDirectory = new DirectoryChooserPanel("Save Directory: ",
-													  ij.IJ.getDirectory("home") + "DeepBlueJ Demo Data" + File.separator,
-													  30);
-			dataDirectory.setToolTipText("Select a directory to download and unpack data to.");
-			loadButton = new JButton("Load Data");
-			loadButton.setFocusPainted(false);
-			loadButton.setFocusable(false);
+		demoDataPanel.setBorder(BorderFactory.createTitledBorder("Demo Data"));
+			demoDatasetsPanel = new JPanel(new GridBagLayout());
+			demoDatasetsPanel.setBorder(BorderFactory.createTitledBorder("Available Datasets"));
+				mnist = new JToggleButton("MNIST");
+				mnist.setToolTipText("Download and load the MNIST digits dataset.");
+				mnist.setFocusPainted(false);
+				mnist.setFocusable(false);
+				dataDirectory = new DirectoryChooserPanel("Save Directory: ",
+						  ij.IJ.getDirectory("home") + "DeepBlueJ Demo Data" + File.separator,
+						  30);
+				dataDirectory.setToolTipText("Select a directory to download and unpack data to.");
+				loadButton = new JButton("Load Data");
+				loadButton.setFocusPainted(false);
+				loadButton.setFocusable(false);
+			demoDataInfoPanel = new JPanel(new GridBagLayout());
+			demoDataInfoPanel.setBorder(BorderFactory.createTitledBorder("Current Dataset Information"));
+				demoDataNameLabel = new JLabel("Dataset Name: ");
+				demoDataName = new JLabel(trainingParams.dataName);
+				demoNumTrainLabel = new JLabel("# Train Images: ");
+				demoNumTrain = new JLabel("None");
+				demoNumTestLabel = new JLabel("# of Test Images: ");
+				demoNumTest = new JLabel("None");
 
 		modelPanel = new JPanel(new GridBagLayout());
 		modelPanel.setBorder(BorderFactory.createTitledBorder("Model Settings"));
@@ -171,16 +183,10 @@ public class DeepBlueJGUI extends JDialog{
 
 		trainingPanel = new JPanel(new GridBagLayout());
 		trainingPanel.setBorder(BorderFactory.createTitledBorder("Training Settings"));
-			trainDataNameLabel = new JLabel("Training Data: ");
-			trainDataName = new JLabel(trainingParams.dataName);
 			trainEpochsLabel = new JLabel("# of Epochs: ");
 			trainEpochs = new ValidatedTextField<Integer>(9, Integer.toString(trainingParams.numEpochs),new ValidatorInt(1,1000000));
-			trainNumTrainLabel = new JLabel("# of Train Images: ");
-			trainNumTrain = new JLabel("None");
 			trainBatchSizeLabel = new JLabel("Batch Size: ");
 			trainBatchSize = new ValidatedTextField<Integer>(9, Integer.toString(trainingParams.batchSize),new ValidatorInt(1,256));
-			trainNumTestLabel = new JLabel("# of Test Images: ");
-			trainNumTest = new JLabel("None");
 			trainSeedLabel = new JLabel("Random Seed: ");
 			trainSeed = new ValidatedTextField<Integer>(9, Integer.toString(trainingParams.seed),new ValidatorInt(Integer.MIN_VALUE,Integer.MAX_VALUE));
 			showAllClasses = new JButton("Show Each Class");
@@ -228,18 +234,44 @@ public class DeepBlueJGUI extends JDialog{
 		// Demo data panel
 		//
 		this.add(demoDataPanel,c);
+		c.fill = GridBagConstraints.BOTH;
+		demoDataPanel.add(demoDatasetsPanel,c);
+		c.gridy++;
+		demoDataPanel.add(demoDataInfoPanel, c);
+		c.gridy = 0;
 		c.fill = GridBagConstraints.NONE;
-		demoDataPanel.add(mnist, c);
+		demoDatasetsPanel.add(mnist, c);
 		c.fill = GridBagConstraints.HORIZONTAL;
 		c.gridy++;
-		demoDataPanel.add(dataDirectory, c);
+		demoDatasetsPanel.add(dataDirectory, c);
 		c.fill = GridBagConstraints.NONE;
 		c.gridy++;
-		demoDataPanel.add(loadButton, c);
+		demoDatasetsPanel.add(loadButton, c);
+		c.gridy = 0;
+		c.gridx = 0;
+		c.gridwidth = 1;
+		c.anchor = GridBagConstraints.EAST;
+		demoDataInfoPanel.add(demoDataNameLabel, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.WEST;
+		demoDataInfoPanel.add(demoDataName, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.EAST;
+		demoDataInfoPanel.add(demoNumTrainLabel, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.WEST;
+		demoDataInfoPanel.add(demoNumTrain, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.EAST;
+		demoDataInfoPanel.add(demoNumTestLabel, c);
+		c.gridx++;
+		c.anchor = GridBagConstraints.WEST;
+		demoDataInfoPanel.add(demoNumTest, c);
 		
 		//
 		// Model Panel
 		//
+		c.gridx = 0;
 		c.gridy = 1;
 		c.gridwidth = 2;
 		c.fill = GridBagConstraints.BOTH;
@@ -291,42 +323,16 @@ public class DeepBlueJGUI extends JDialog{
 		c.gridy = 0;
 		c.gridwidth = 1;
 		c.anchor = GridBagConstraints.EAST;
-		trainingPanel.add(trainDataNameLabel, c);
-		c.anchor = GridBagConstraints.WEST;
-		c.gridx++;
-		trainingPanel.add(trainDataName, c);
-		c.gridx++;
-		c.anchor = GridBagConstraints.EAST;
 		trainingPanel.add(trainEpochsLabel, c);
 		c.gridx++;
 		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(trainEpochs, c);
-		
-		c.gridy++;
-		c.gridx = 0;
-		c.gridwidth = 1;
-		c.fill = GridBagConstraints.NONE;
-		c.anchor = GridBagConstraints.EAST;
-		trainingPanel.add(trainNumTrainLabel, c);
-		c.gridx++;
-		c.anchor = GridBagConstraints.WEST;
-		trainingPanel.add(trainNumTrain,c);
 		c.gridx++;
 		c.anchor = GridBagConstraints.EAST;
 		trainingPanel.add(trainBatchSizeLabel,c);
 		c.gridx++;
 		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(trainBatchSize, c);
-		
-		c.gridy++;
-		c.gridx = 0;
-		c.gridwidth = 1;
-		c.fill = GridBagConstraints.NONE;
-		c.anchor = GridBagConstraints.EAST;
-		trainingPanel.add(trainNumTestLabel, c);
-		c.gridx++;
-		c.anchor = GridBagConstraints.WEST;
-		trainingPanel.add(trainNumTest,c);
 		c.gridx++;
 		c.anchor = GridBagConstraints.EAST;
 		trainingPanel.add(trainSeedLabel,c);
@@ -473,7 +479,7 @@ public class DeepBlueJGUI extends JDialog{
                 // use stochastic gradient descent as an optimization algorithm
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .iterations(1)
-                .learningRate(0.006) //specify the learning rate
+                .learningRate(0.001) //specify the learning rate
                 .updater(Updater.NESTEROVS).momentum(0.9) //specify the rate of change of the learning rate.
                 .regularization(true).l2(1e-4)
                 .list()
@@ -543,9 +549,9 @@ public class DeepBlueJGUI extends JDialog{
 		trainBatchSize.setText(Integer.toString(trainingParams.batchSize));
 		trainSeed.setText(Integer.toString(trainingParams.seed));
 		trainEpochs.setText(Integer.toString(trainingParams.numEpochs));
-		trainDataName.setText(trainingParams.dataName);
-		trainNumTrain.setText(Integer.toString(trainingParams.numTrain));
-		trainNumTest.setText(Integer.toString(trainingParams.numTest));
+		demoDataName.setText(trainingParams.dataName);
+		demoNumTrain.setText(Integer.toString(trainingParams.numTrain));
+		demoNumTest.setText(Integer.toString(trainingParams.numTest));
 	}
 	
 	private void setModelParams() {
