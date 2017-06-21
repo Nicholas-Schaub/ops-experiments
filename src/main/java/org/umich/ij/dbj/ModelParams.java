@@ -35,7 +35,12 @@ public class ModelParams {
 	private String modelTypeString = MODEL_TYPE_STRING[0];
 	private int unitType = 0;
 	private String unitTypeString = UNIT_TYPE_STRING[0];
-	private int unitDepth = 1;
+	private int[] unitRepeat = {0};
+	private int unitComplexity = 5;
+	private int unitScale = 1;
+	private int modelScales = 1;
+	private int modelScalesMax = 1;
+	private boolean isTrained = false;
 	
 	public ModelParams(int mType, int rIn, int cIn,int outFeatures) {
 		modelType(mType);
@@ -136,7 +141,7 @@ public class ModelParams {
 	}
 	
 	public void numClasses(int nClasses) {
-		if (modelType==1 || modelType==4) {
+		if (modelType==0 || modelType==3) {
 			numClasses = nClasses;
 		} else {
 			numClasses = 0;
@@ -147,7 +152,7 @@ public class ModelParams {
 	}
 	
 	public void attributesOut(int nAttributes) {
-		if (modelType==3 || modelType==6) {
+		if (modelType==2 || modelType==5) {
 			attributesOut = nAttributes;
 		} else {
 			attributesOut = 0;
@@ -155,5 +160,17 @@ public class ModelParams {
 	}
 	public int attributesOut() {
 		return attributesOut;
+	}
+	
+	private int log2(int n) {
+		// returns largest integer power of 2 that divides n
+		return (n & -n);
+	}
+	
+	private void updateScales() {
+		modelScalesMax = Math.min(log2(rowsIn), log2(colsIn));
+		if (modelScales>modelScalesMax) {
+			modelScales = modelScalesMax;
+		}
 	}
 }

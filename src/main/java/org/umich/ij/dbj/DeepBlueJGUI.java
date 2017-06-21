@@ -45,10 +45,10 @@ import org.scijava.log.LogService;
 import org.scijava.thread.ThreadService;
 import org.scijava.ui.UIService;
 import org.umich.ij.guitools.DirectoryChooserPanel;
-import org.umich.ij.guitools.TextFieldInputPanel;
 import org.umich.ij.guitools.ValidatedTextField;
 import org.umich.ij.guitools.ValidatorInt;
 
+import ij.IJ;
 import ij.ImagePlus;
 import net.imagej.ops.OpService;
 import net.imagej.ops.experiments.ConvertersUtility;
@@ -116,7 +116,7 @@ public class DeepBlueJGUI extends JDialog{
 	private DataSetIterator trainData;
 	private DataSetIterator testData;
 	private TrainingParams trainingParams = new TrainingParams();
-	private ModelParams modelParams = new ModelParams();
+	private ModelParams modelParams = new ModelParams(0,28,28,10);
 	
 	// Training Interrupter
 	private TrainInterrupt trainInterrupt = new TrainInterrupt();
@@ -156,7 +156,7 @@ public class DeepBlueJGUI extends JDialog{
 				mnist.setFocusable(false);
 				dataDirectory = new DirectoryChooserPanel("Save Directory: ",
 						  ij.IJ.getDirectory("home") + "DeepBlueJ Demo Data" + File.separator,
-						  30);
+						  25);
 				dataDirectory.setToolTipText("Select a directory to download and unpack data to.");
 				loadButton = new JButton("Load Data");
 				loadButton.setFocusPainted(false);
@@ -167,14 +167,14 @@ public class DeepBlueJGUI extends JDialog{
 				demoDataName = new JLabel(trainingParams.dataName);
 				demoNumTrainLabel = new JLabel("# Train Images: ");
 				demoNumTrain = new JLabel("None");
-				demoNumTestLabel = new JLabel("# of Test Images: ");
+				demoNumTestLabel = new JLabel("# Test Images: ");
 				demoNumTest = new JLabel("None");
 
 		modelPanel = new JPanel(new GridBagLayout());
 		modelPanel.setBorder(BorderFactory.createTitledBorder("Model Settings"));
 			modelTypeLabel = new JLabel("Model Type: ");
 			modelType = new JLabel(Integer.toString(modelParams.modelType()));
-			modelNumClassLabel = new JLabel("# of Labels: ");
+			modelNumClassLabel = new JLabel("# Labels: ");
 			modelNumClass = new JLabel(Integer.toString(modelParams.numClasses()));
 			modelInpWidthLabel = new JLabel("Input Width: ");
 			modelInpWidth = new JLabel(Integer.toString(modelParams.colsIn()));
@@ -325,34 +325,40 @@ public class DeepBlueJGUI extends JDialog{
 		c.anchor = GridBagConstraints.EAST;
 		trainingPanel.add(trainEpochsLabel, c);
 		c.gridx++;
+		c.ipadx = 35;
 		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(trainEpochs, c);
 		c.gridx++;
+		c.ipadx = 0;
 		c.anchor = GridBagConstraints.EAST;
 		trainingPanel.add(trainBatchSizeLabel,c);
 		c.gridx++;
+		c.ipadx = 35;
 		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(trainBatchSize, c);
 		c.gridx++;
+		c.ipadx = 0;
 		c.anchor = GridBagConstraints.EAST;
 		trainingPanel.add(trainSeedLabel,c);
 		c.gridx++;
+		c.ipadx = 35;
 		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(trainSeed, c);
 		
 		c.gridy++;
 		c.gridx = 1;
-		c.gridwidth = 1;
+		c.gridwidth = 2;
+		c.ipadx = 0;
 		c.fill = GridBagConstraints.NONE;
 		c.anchor = GridBagConstraints.EAST;
 		trainingPanel.add(showAllClasses, c);
-		c.gridx++;
+		c.gridx+=2;
 		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(showTestImage,c);
 		
 		c.gridy++;
 		c.gridx = 0;
-		c.gridwidth = 4;
+		c.gridwidth = 6;
 		c.fill = GridBagConstraints.HORIZONTAL;
 		c.anchor = GridBagConstraints.CENTER;
 		trainingPanel.add(epochProgress, c);
@@ -363,11 +369,11 @@ public class DeepBlueJGUI extends JDialog{
 		c.ipadx = 10;
 		c.ipady = 10;
 		c.gridx = 1;
-		c.gridwidth = 1;
+		c.gridwidth = 2;
 		c.fill = GridBagConstraints.NONE;
 		c.anchor = GridBagConstraints.EAST;
 		trainingPanel.add(startTraining, c);
-		c.gridx++;
+		c.gridx+=2;
 		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(stopTraining,c);
 		
@@ -467,6 +473,10 @@ public class DeepBlueJGUI extends JDialog{
 	}
 	
 	private void trainModel() {
+		if (trainData==null || testData==null) {
+			IJ.error("No data is loaded");
+		}
+		
 		log.info("Setting training parameters...");
 		updateTrainingParams();
 		
@@ -539,7 +549,7 @@ public class DeepBlueJGUI extends JDialog{
 	}
 	
 	private void updateModelParams() {
-		modelParams.modelType(Integer.parseInt(modelType.getText()));
+		modelParams.modelType(modelType.getText());
 		modelParams.numClasses(Integer.parseInt(modelNumClass.getText()));
 		modelParams.colsIn(Integer.parseInt(modelInpWidth.getText()));
 		modelParams.rowsIn(Integer.parseInt(modelInpHeight.getText()));
