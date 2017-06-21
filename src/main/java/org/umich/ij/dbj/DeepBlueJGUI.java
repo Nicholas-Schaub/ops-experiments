@@ -173,13 +173,13 @@ public class DeepBlueJGUI extends JDialog{
 		modelPanel = new JPanel(new GridBagLayout());
 		modelPanel.setBorder(BorderFactory.createTitledBorder("Model Settings"));
 			modelTypeLabel = new JLabel("Model Type: ");
-			modelType = new JLabel(Integer.toString(modelParams.modelType));
+			modelType = new JLabel(Integer.toString(modelParams.modelType()));
 			modelNumClassLabel = new JLabel("# of Labels: ");
-			modelNumClass = new JLabel(Integer.toString(modelParams.numClasses));
+			modelNumClass = new JLabel(Integer.toString(modelParams.numClasses()));
 			modelInpWidthLabel = new JLabel("Input Width: ");
-			modelInpWidth = new JLabel(Integer.toString(modelParams.numColsIn));
+			modelInpWidth = new JLabel(Integer.toString(modelParams.colsIn()));
 			modelInpHeightLabel = new JLabel("Input Height: ");
-			modelInpHeight = new JLabel(Integer.toString(modelParams.numRowsIn));
+			modelInpHeight = new JLabel(Integer.toString(modelParams.rowsIn()));
 
 		trainingPanel = new JPanel(new GridBagLayout());
 		trainingPanel.setBorder(BorderFactory.createTitledBorder("Training Settings"));
@@ -403,9 +403,9 @@ public class DeepBlueJGUI extends JDialog{
 
 					currentDataSet = "MNIST";
 					
-					modelParams.numColsIn = 28;
-					modelParams.numRowsIn = 28;
-					modelParams.numClasses = 10;
+					modelParams.colsIn(28);
+					modelParams.rowsIn(28);
+					modelParams.numClasses(10);
 					
 					trainData = DemoData.getTrainData(currentDataSet,trainingParams);
 					testData = DemoData.getTestData(currentDataSet,trainingParams);
@@ -442,9 +442,9 @@ public class DeepBlueJGUI extends JDialog{
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				trainData.reset();
-				ArrayImg<FloatType,FloatArray> ip = ArrayImgs.floats(modelParams.numColsIn,modelParams.numRowsIn,modelParams.numClasses);
+				ArrayImg<FloatType,FloatArray> ip = ArrayImgs.floats(modelParams.colsIn(),modelParams.rowsIn(),modelParams.numClasses());
 				DataSet example = trainData.next(1);
-				for (int i = 0; i<modelParams.numClasses; i++) {
+				for (int i = 0; i<modelParams.numClasses(); i++) {
 					while (example.outcome()!=i) {
 						example = trainData.next(1);
 						if (!trainData.hasNext()) {
@@ -455,7 +455,7 @@ public class DeepBlueJGUI extends JDialog{
 						INDArray img = example.getFeatures();
 						IterableInterval<FloatType> ipv = Views.interval(ip,
 																		 new long[] {0,0,i},
-																		 new long[] {modelParams.numColsIn-1,modelParams.numRowsIn-1,i});
+																		 new long[] {modelParams.colsIn()-1,modelParams.rowsIn()-1,i});
 						ConvertersUtility.INDArrayToIIFloat2D(img, ipv);
 					}
 				}
@@ -484,14 +484,14 @@ public class DeepBlueJGUI extends JDialog{
                 .regularization(true).l2(1e-4)
                 .list()
                 .layer(0, new DenseLayer.Builder() //create the first, input layer with xavier initialization
-                        .nIn(modelParams.numRowsIn * modelParams.numColsIn)
+                        .nIn(modelParams.rowsIn() * modelParams.colsIn())
                         .nOut(1000)
                         .activation(Activation.RELU)
                         .weightInit(WeightInit.XAVIER)
                         .build())
                 .layer(1, new OutputLayer.Builder(LossFunction.NEGATIVELOGLIKELIHOOD) //create hidden layer
                         .nIn(1000)
-                        .nOut(modelParams.numClasses)
+                        .nOut(modelParams.numClasses())
                         .activation(Activation.SOFTMAX)
                         .weightInit(WeightInit.XAVIER)
                         .name("objective")
@@ -539,10 +539,10 @@ public class DeepBlueJGUI extends JDialog{
 	}
 	
 	private void updateModelParams() {
-		modelParams.modelType = Integer.parseInt(modelType.getText());
-		modelParams.numClasses = Integer.parseInt(modelNumClass.getText());
-		modelParams.numColsIn = Integer.parseInt(modelInpWidth.getText());
-		modelParams.numRowsIn = Integer.parseInt(modelInpHeight.getText());
+		modelParams.modelType(Integer.parseInt(modelType.getText()));
+		modelParams.numClasses(Integer.parseInt(modelNumClass.getText()));
+		modelParams.colsIn(Integer.parseInt(modelInpWidth.getText()));
+		modelParams.rowsIn(Integer.parseInt(modelInpHeight.getText()));
 	}
 	
 	private void setTrainingParams() {
@@ -555,10 +555,10 @@ public class DeepBlueJGUI extends JDialog{
 	}
 	
 	private void setModelParams() {
-		modelType.setText(Integer.toString(modelParams.modelType));
-		modelNumClass.setText(Integer.toString(modelParams.numClasses));
-		modelInpWidth.setText(Integer.toString(modelParams.numColsIn));
-		modelInpHeight.setText(Integer.toString(modelParams.numRowsIn));
+		modelType.setText(modelParams.modelTypeString());
+		modelNumClass.setText(Integer.toString(modelParams.numClasses()));
+		modelInpWidth.setText(Integer.toString(modelParams.colsIn()));
+		modelInpHeight.setText(Integer.toString(modelParams.rowsIn()));
 	}
 	
 	private class TrainInterrupt implements IterationTerminationCondition {
