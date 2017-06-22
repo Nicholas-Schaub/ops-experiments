@@ -1,5 +1,9 @@
 package org.umich.ij.dbj;
 
+import java.util.Arrays;
+
+import org.nd4j.linalg.activations.Activation;
+
 public class ModelParams {
 	public static final int IMAGE_CLASSIFICATION = 0;
 	public static final int IMAGE_REGRESSION = 1;
@@ -18,6 +22,8 @@ public class ModelParams {
 	public static final int INCEPTION_UNITS = 1;
 	public static final String[] UNIT_TYPE_STRING = {"Simple",
 													 "Inception"};
+	
+	public static final String[] UNIT_ACTIVATION_STRING = Arrays.stream(Activation.values()).map(Enum::name).toArray(String[]::new);
 
 	// Model Input Parameters
 	private int rowsIn;
@@ -37,7 +43,11 @@ public class ModelParams {
 	private String unitTypeString = UNIT_TYPE_STRING[0];
 	private int[] unitRepeat = {0};
 	private int unitComplexity = 5;
-	private int unitScale = 1;
+	private int[] unitScale = {1};
+	private String unitActivation = UNIT_ACTIVATION_STRING[0];
+	public boolean useBatchNorm = false;
+	public boolean useDropOut = false;
+	public double dropoutRate = 0.5;
 	private int modelScales = 1;
 	private int modelScalesMax = 1;
 	private boolean isTrained = false;
@@ -175,8 +185,40 @@ public class ModelParams {
 	
 	private void updateScales() {
 		modelScalesMax = Math.min(log2(rowsIn), log2(colsIn));
-		if (modelScales>modelScalesMax) {
-			modelScales = modelScalesMax;
+		modelScales(modelScales);
+	}
+	
+	public void modelScales(int mScales) {
+		if (mScales<=modelScalesMax) {
+			modelScales = mScales;
 		}
+	}
+	public int modelScales() {
+		return modelScales;
+	}
+	
+	public int modelScalesMax() {
+		return modelScalesMax;
+	}
+	
+	public void unitScale(int[] uScale) {
+		if (uScale.length==1 || uScale.length==modelScales) {
+			unitScale = uScale;
+		}
+	}
+	public int[] unitScale() {
+		return unitScale;
+	}
+	public String unitScaleString() {
+		String uScaleStr = Integer.toString(unitScale[0]);
+		for (int i = 1; i < unitScale.length; i++) {
+			uScaleStr += ", " + Integer.toString(unitScale[i]);
+		}
+		return uScaleStr;
+	}
+	public void unitScale(String uScale) {
+		uScale = uScale.replace(" ", "");
+		String[] uScaleSplit = uScale.split(",");
+		unitScale = new int[uScaleSplit.length];
 	}
 }
