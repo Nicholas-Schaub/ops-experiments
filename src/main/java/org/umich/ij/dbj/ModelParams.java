@@ -7,12 +7,12 @@ public class ModelParams {
 	public static final int PIXEL_CLASSIFICATION = 3;
 	public static final int PIXEL_REGRESSION = 4;
 	public static final int PIXEL_ATTRIBUTES = 5;
-	public static final String[] MODEL_TYPE_STRING = {"Image Classification",
-													  "Image Regression",
-													  "Image Attributes",
-													  "Pixel Classification",
-													  "Pixel Regression",
-												   	  "Pixel Attributes"};
+	public static final String[] MODEL_TYPE_STRING = {"Img Class",
+													  "Img Reg",
+													  "Img Att",
+													  "Pix Class",
+													  "Pix Reg",
+												   	  "Pix Att"};
 	
 	public static final int SIMPLE_UNITS = 0;
 	public static final int INCEPTION_UNITS = 1;
@@ -46,6 +46,12 @@ public class ModelParams {
 		modelType(mType);
 		rowsIn(rIn);
 		colsIn(cIn);
+		if (modelType<3) {
+			rowsOut(0);
+			colsOut(0);
+		} else {
+			
+		}
 		attributesIn(1);
 		attributesOut(outFeatures);
 		numClasses(outFeatures);

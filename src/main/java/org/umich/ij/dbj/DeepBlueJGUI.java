@@ -11,6 +11,7 @@ import java.io.File;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -87,14 +88,22 @@ public class DeepBlueJGUI extends JDialog{
 	
 	// Model panel
 	private JPanel modelPanel;
-	private JLabel modelNumClassLabel;
-	private JLabel modelNumClass;
-	private JLabel modelInpWidthLabel;
-	private JLabel modelInpWidth;
-	private JLabel modelInpHeightLabel;
-	private JLabel modelInpHeight;
 	private JLabel modelTypeLabel;
-	private JLabel modelType;
+	private JComboBox modelType;
+	private JLabel modelNumClassLabel;
+	private ValidatedTextField<Integer> modelNumClass;
+	private JLabel modelNumAttributesLabel;
+	private ValidatedTextField<Integer> modelNumAttributes;
+	private JLabel modelInpWidthLabel;
+	private ValidatedTextField<Integer> modelInpWidth;
+	private JLabel modelInpHeightLabel;
+	private ValidatedTextField<Integer> modelInpHeight;
+	private JLabel modelInpAttributesLabel;
+	private ValidatedTextField<Integer> modelInpAttributes;
+	private JLabel modelOutWidthLabel;
+	private ValidatedTextField<Integer> modelOutWidth;
+	private JLabel modelOutHeightLabel;
+	private ValidatedTextField<Integer> modelOutHeight;
 
 	// Network Training Panel
 	private JPanel trainingPanel;
@@ -173,20 +182,28 @@ public class DeepBlueJGUI extends JDialog{
 		modelPanel = new JPanel(new GridBagLayout());
 		modelPanel.setBorder(BorderFactory.createTitledBorder("Model Settings"));
 			modelTypeLabel = new JLabel("Model Type: ");
-			modelType = new JLabel(Integer.toString(modelParams.modelType()));
-			modelNumClassLabel = new JLabel("# Labels: ");
-			modelNumClass = new JLabel(Integer.toString(modelParams.numClasses()));
-			modelInpWidthLabel = new JLabel("Input Width: ");
-			modelInpWidth = new JLabel(Integer.toString(modelParams.colsIn()));
-			modelInpHeightLabel = new JLabel("Input Height: ");
-			modelInpHeight = new JLabel(Integer.toString(modelParams.rowsIn()));
+			modelType = new JComboBox<String>(ModelParams.MODEL_TYPE_STRING);
+			modelNumClassLabel = new JLabel("# Classes: ");
+			modelNumClass = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.numClasses()),new ValidatorInt(0,100000));
+			modelNumAttributesLabel = new JLabel("# Attributes: ");
+			modelNumAttributes = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.attributesOut()),new ValidatorInt(0,100000));
+			modelInpWidthLabel = new JLabel("Width In: ");
+			modelInpWidth = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.colsIn()),new ValidatorInt(16,100000));
+			modelInpHeightLabel = new JLabel("Height In: ");
+			modelInpHeight = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.rowsIn()),new ValidatorInt(16,100000));
+			modelInpAttributesLabel = new JLabel("Input Attributes: ");
+			modelInpAttributes = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.attributesIn()),new ValidatorInt(1,100000));
+			modelOutWidthLabel = new JLabel("Width Out: ");
+			modelOutWidth = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.colsOut()),new ValidatorInt(1,100000));
+			modelOutHeightLabel = new JLabel("Height Out: ");
+			modelOutHeight = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.rowsOut()),new ValidatorInt(1,100000));
 
 		trainingPanel = new JPanel(new GridBagLayout());
 		trainingPanel.setBorder(BorderFactory.createTitledBorder("Training Settings"));
 			trainEpochsLabel = new JLabel("# of Epochs: ");
 			trainEpochs = new ValidatedTextField<Integer>(9, Integer.toString(trainingParams.numEpochs),new ValidatorInt(1,1000000));
 			trainBatchSizeLabel = new JLabel("Batch Size: ");
-			trainBatchSize = new ValidatedTextField<Integer>(9, Integer.toString(trainingParams.batchSize),new ValidatorInt(1,256));
+			trainBatchSize = new ValidatedTextField<Integer>(9, Integer.toString(trainingParams.batchSize),new ValidatorInt(1,512));
 			trainSeedLabel = new JLabel("Random Seed: ");
 			trainSeed = new ValidatedTextField<Integer>(9, Integer.toString(trainingParams.seed),new ValidatorInt(Integer.MIN_VALUE,Integer.MAX_VALUE));
 			showAllClasses = new JButton("Show Each Class");
@@ -281,33 +298,105 @@ public class DeepBlueJGUI extends JDialog{
 		c.fill = GridBagConstraints.NONE;
 		c.gridy = 0;
 		c.gridwidth = 1;
+		c.ipadx = 0;
 		c.anchor = GridBagConstraints.EAST;
 		modelPanel.add(modelTypeLabel, c);
 		c.anchor = GridBagConstraints.WEST;
 		c.gridx++;
+		c.ipadx = 35;
 		modelPanel.add(modelType, c);
 		c.gridx++;
+		c.ipadx = 0;
 		c.anchor = GridBagConstraints.EAST;
 		modelPanel.add(modelNumClassLabel, c);
+		c.ipadx = 35;
 		c.gridx++;
 		c.anchor = GridBagConstraints.WEST;
 		modelPanel.add(modelNumClass, c);
+		c.gridx++;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelNumAttributesLabel, c);
+		c.gridx++;
+		c.ipadx = 35;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelNumAttributes, c);
 		
 		c.gridy++;
 		c.gridx = 0;
 		c.gridwidth = 1;
 		c.fill = GridBagConstraints.NONE;
+		c.ipadx = 0;
 		c.anchor = GridBagConstraints.EAST;
 		modelPanel.add(modelInpWidthLabel, c);
 		c.gridx++;
+		c.ipadx = 35;
 		c.anchor = GridBagConstraints.WEST;
 		modelPanel.add(modelInpWidth,c);
 		c.gridx++;
+		c.ipadx = 0;
 		c.anchor = GridBagConstraints.EAST;
 		modelPanel.add(modelInpHeightLabel, c);
 		c.gridx++;
+		c.ipadx = 35;
 		c.anchor = GridBagConstraints.WEST;
 		modelPanel.add(modelInpHeight, c);
+		c.gridx++;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelInpAttributesLabel, c);
+		c.gridx++;
+		c.ipadx = 35;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelInpAttributes, c);
+		
+		c.gridy++;
+		c.gridx = 0;
+		c.gridwidth = 1;
+		c.fill = GridBagConstraints.NONE;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelInpWidthLabel, c);
+		c.gridx++;
+		c.ipadx = 35;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelInpWidth,c);
+		c.gridx++;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelInpHeightLabel, c);
+		c.gridx++;
+		c.ipadx = 35;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelInpHeight, c);
+		c.gridx++;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelInpAttributesLabel, c);
+		c.gridx++;
+		c.ipadx = 35;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelInpAttributes, c);
+		
+		c.gridy++;
+		c.gridx = 1;
+		c.gridwidth = 1;
+		c.fill = GridBagConstraints.NONE;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelOutWidthLabel, c);
+		c.gridx++;
+		c.ipadx = 35;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelOutWidth,c);
+		c.gridx++;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelOutHeightLabel, c);
+		c.gridx++;
+		c.ipadx = 35;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelOutHeight, c);
 		
 		//
 		// Training Panel
@@ -315,6 +404,7 @@ public class DeepBlueJGUI extends JDialog{
 		c.gridy = 2;
 		c.gridwidth = 2;
 		c.gridx = 0;
+		c.ipadx = 0;
 		c.fill = GridBagConstraints.BOTH;
 		c.anchor = GridBagConstraints.NORTH;
 		this.add(trainingPanel,c);
@@ -345,16 +435,16 @@ public class DeepBlueJGUI extends JDialog{
 		c.anchor = GridBagConstraints.WEST;
 		trainingPanel.add(trainSeed, c);
 		
-		c.gridy++;
-		c.gridx = 1;
-		c.gridwidth = 2;
-		c.ipadx = 0;
-		c.fill = GridBagConstraints.NONE;
-		c.anchor = GridBagConstraints.EAST;
-		trainingPanel.add(showAllClasses, c);
-		c.gridx+=2;
-		c.anchor = GridBagConstraints.WEST;
-		trainingPanel.add(showTestImage,c);
+//		c.gridy++;
+//		c.gridx = 1;
+//		c.gridwidth = 2;
+//		c.ipadx = 0;
+//		c.fill = GridBagConstraints.NONE;
+//		c.anchor = GridBagConstraints.EAST;
+//		trainingPanel.add(showAllClasses, c);
+//		c.gridx+=2;
+//		c.anchor = GridBagConstraints.WEST;
+//		trainingPanel.add(showTestImage,c);
 		
 		c.gridy++;
 		c.gridx = 0;
@@ -549,7 +639,7 @@ public class DeepBlueJGUI extends JDialog{
 	}
 	
 	private void updateModelParams() {
-		modelParams.modelType(modelType.getText());
+		modelParams.modelType(modelType.getSelectedIndex());
 		modelParams.numClasses(Integer.parseInt(modelNumClass.getText()));
 		modelParams.colsIn(Integer.parseInt(modelInpWidth.getText()));
 		modelParams.rowsIn(Integer.parseInt(modelInpHeight.getText()));
@@ -565,7 +655,7 @@ public class DeepBlueJGUI extends JDialog{
 	}
 	
 	private void setModelParams() {
-		modelType.setText(modelParams.modelTypeString());
+		modelType.setSelectedIndex(modelParams.modelType());
 		modelNumClass.setText(Integer.toString(modelParams.numClasses()));
 		modelInpWidth.setText(Integer.toString(modelParams.colsIn()));
 		modelInpHeight.setText(Integer.toString(modelParams.rowsIn()));
