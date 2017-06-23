@@ -90,10 +90,10 @@ public class DeepBlueJGUI extends JDialog{
 	private JPanel modelPanel;
 	private JLabel modelTypeLabel;
 	private JComboBox<String> modelType;
-	private JLabel modelScalesLabel;
-	private ValidatedTextField<Integer> modelScales;
-	private JLabel modelScalesMaxLabel;
-	private JLabel modelScalesMax;
+	private JLabel modelDepthLabel;
+	private ValidatedTextField<Integer> modelDepth;
+	private JLabel modelDepthMaxLabel;
+	private JLabel modelDepthMax;
 	private JLabel modelNumClassLabel;
 	private ValidatedTextField<Integer> modelNumClass;
 	private JLabel modelNumAttributesLabel;
@@ -114,6 +114,9 @@ public class DeepBlueJGUI extends JDialog{
 	private ValidatedTextField<Integer> modelUnitScale;
 	private JLabel modelUnitComplexityLabel;
 	private ValidatedTextField<Integer> modelUnitComplexity;
+	private JLabel modelUnitRepeatLabel;
+	private ValidatedTextField<Integer> modelUnitRepeat;
+	private JButton updateSettings;
 
 	// Network Training Panel
 	private JPanel trainingPanel;
@@ -145,7 +148,7 @@ public class DeepBlueJGUI extends JDialog{
 		DeepBlueJGUI.setDefaultLookAndFeelDecorated(true);
 		
 		this.setTitle("DeepBlueJ - Alpha");
-		this.setSize(new Dimension(451,421));
+		this.setSize(new Dimension(451,501));
 		this.setLayout(new GridBagLayout());
 		
 		initElements();
@@ -193,10 +196,11 @@ public class DeepBlueJGUI extends JDialog{
 		modelPanel.setBorder(BorderFactory.createTitledBorder("Model Settings"));
 			modelTypeLabel = new JLabel("Model Type: ");
 			modelType = new JComboBox<String>(ModelParams.MODEL_TYPE_STRING);
-			modelScalesLabel = new JLabel("# Scales: ");
-			modelScales = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.modelScales()),new ValidatorInt(0,modelParams.modelScalesMax()));
-			modelScalesMaxLabel = new JLabel("Max Scales: ");
-			modelScalesMax = new JLabel(Integer.toString(modelParams.modelScalesMax()));
+			modelType.setFocusable(false);
+			modelDepthLabel = new JLabel("# Scales: ");
+			modelDepth = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.modelDepth()),new ValidatorInt(0,modelParams.modelScalesMax()));
+			modelDepthMaxLabel = new JLabel("Max Scales: ");
+			modelDepthMax = new JLabel(Integer.toString(modelParams.modelScalesMax()));
 			modelInpWidthLabel = new JLabel("Width In: ");
 			modelInpWidth = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.colsIn()),new ValidatorInt(16,100000));
 			modelInpHeightLabel = new JLabel("Height In: ");
@@ -211,11 +215,19 @@ public class DeepBlueJGUI extends JDialog{
 			modelNumClass = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.numClasses()),new ValidatorInt(0,100000));
 			modelNumAttributesLabel = new JLabel("# Attributes: ");
 			modelNumAttributes = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.attributesOut()),new ValidatorInt(0,100000));
-			modelUnitTypeLabel = new JLabel("Model Type: ");
+			modelUnitTypeLabel = new JLabel("Unit Type: ");
 			modelUnitType = new JComboBox<String>(ModelParams.UNIT_TYPE_STRING);
-			modelUnitScaleLabel = new JLabel("Unit Scale: ");
-			modelUnitScale = new ValidatedTextField<Integer>(9, Integer.toString(modelParams.unitScale()),new ValidatorInt(0,100000));
-
+			modelUnitType.setFocusable(false);
+			modelUnitScaleLabel = new JLabel("Unit Scales: ");
+			modelUnitScale = new ValidatedTextField<Integer>(36, modelParams.unitScaleString(),new ValidatorInt(0,100000));
+			modelUnitComplexityLabel = new JLabel("Unit Scales: ");
+			modelUnitComplexity = new ValidatedTextField<Integer>(36, Integer.toString(modelParams.unitComplexity()),new ValidatorInt(3,16));
+			modelUnitRepeatLabel = new JLabel("Unit Repeat: ");
+			modelUnitRepeat = new ValidatedTextField<Integer>(36, modelParams.unitRepeatString(),new ValidatorInt(0,31));
+			updateSettings = new JButton("Update Settings");
+			updateSettings.setFocusPainted(false);
+			updateSettings.setFocusable(false);
+			
 		trainingPanel = new JPanel(new GridBagLayout());
 		trainingPanel.setBorder(BorderFactory.createTitledBorder("Training Settings"));
 			trainEpochsLabel = new JLabel("# of Epochs: ");
@@ -326,19 +338,19 @@ public class DeepBlueJGUI extends JDialog{
 		c.gridx++;
 		c.ipadx = 0;
 		c.anchor = GridBagConstraints.EAST;
-		modelPanel.add(modelScalesLabel, c);
+		modelPanel.add(modelDepthLabel, c);
 		c.gridx++;
 		c.ipadx = 35;
 		c.anchor = GridBagConstraints.WEST;
-		modelPanel.add(modelScales, c);
+		modelPanel.add(modelDepth, c);
 		c.gridx++;
 		c.ipadx = 0;
 		c.anchor = GridBagConstraints.EAST;
-		modelPanel.add(modelScalesMaxLabel, c);
+		modelPanel.add(modelDepthMaxLabel, c);
 		c.gridx++;
 		c.ipadx = 35;
 		c.anchor = GridBagConstraints.WEST;
-		modelPanel.add(modelScalesMax, c);
+		modelPanel.add(modelDepthMax, c);
 		
 		c.gridy++;
 		c.gridx = 0;
@@ -405,6 +417,56 @@ public class DeepBlueJGUI extends JDialog{
 		c.anchor = GridBagConstraints.WEST;
 		modelPanel.add(modelNumAttributes, c);
 		modelNumAttributes.setVisible(false);
+		
+		c.gridy++;
+		c.gridx = 0;
+		c.gridwidth = 1;
+		c.fill = GridBagConstraints.NONE;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelUnitTypeLabel, c);
+		c.gridx++;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelUnitType,c);
+		c.gridx++;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelUnitScaleLabel, c);
+		c.gridx++;
+		c.ipadx = 185;
+		c.gridwidth = 3;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelUnitScale, c);
+		
+		c.gridy++;
+		c.gridx = 0;
+		c.gridwidth = 1;
+		c.fill = GridBagConstraints.NONE;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelUnitComplexityLabel, c);
+		c.gridx++;
+		c.ipadx = 35;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelUnitComplexity,c);
+		c.gridx++;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.EAST;
+		modelPanel.add(modelUnitRepeatLabel, c);
+		c.gridx++;
+		c.ipadx = 185;
+		c.gridwidth = 3;
+		c.anchor = GridBagConstraints.WEST;
+		modelPanel.add(modelUnitRepeat, c);
+		
+		c.gridy++;
+		c.gridx = 2;
+		c.gridwidth = 2;
+		c.fill = GridBagConstraints.NONE;
+		c.ipadx = 0;
+		c.anchor = GridBagConstraints.CENTER;
+		modelPanel.add(updateSettings, c);
 		
 		//
 		// Training Panel
@@ -480,6 +542,15 @@ public class DeepBlueJGUI extends JDialog{
 	
 	private void initListeners() {
 		
+		updateSettings.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				
+			}
+			
+		});
+		
 		stopTraining.addActionListener(new ActionListener() {
 
 			@Override
@@ -525,8 +596,6 @@ public class DeepBlueJGUI extends JDialog{
 					} else {
 						log.info("Loaded MNIST digits in " + Long.toString(System.currentTimeMillis() - startTime) + "ms!");
 					}
-					setTrainingParams();
-					setModelParams();
 				}
 			}
 			
@@ -651,22 +720,6 @@ public class DeepBlueJGUI extends JDialog{
 		modelParams.numClasses(Integer.parseInt(modelNumClass.getText()));
 		modelParams.colsIn(Integer.parseInt(modelInpWidth.getText()));
 		modelParams.rowsIn(Integer.parseInt(modelInpHeight.getText()));
-	}
-	
-	private void setTrainingParams() {
-		trainBatchSize.setText(Integer.toString(trainingParams.batchSize));
-		trainSeed.setText(Integer.toString(trainingParams.seed));
-		trainEpochs.setText(Integer.toString(trainingParams.numEpochs));
-		demoDataName.setText(trainingParams.dataName);
-		demoNumTrain.setText(Integer.toString(trainingParams.numTrain));
-		demoNumTest.setText(Integer.toString(trainingParams.numTest));
-	}
-	
-	private void setModelParams() {
-		modelType.setSelectedIndex(modelParams.modelType());
-		modelNumClass.setText(Integer.toString(modelParams.numClasses()));
-		modelInpWidth.setText(Integer.toString(modelParams.colsIn()));
-		modelInpHeight.setText(Integer.toString(modelParams.rowsIn()));
 	}
 	
 	private class TrainInterrupt implements IterationTerminationCondition {

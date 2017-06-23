@@ -48,8 +48,8 @@ public class ModelParams {
 	public boolean useBatchNorm = false;
 	public boolean useDropOut = false;
 	public double dropoutRate = 0.5;
-	private int modelScales = 1;
-	private int modelScalesMax = 1;
+	private int modelDepth = 1;
+	private int modelDepthMax = 1;
 	private boolean isTrained = false;
 	
 	public ModelParams(int mType, int rIn, int cIn,int outFeatures) {
@@ -57,10 +57,11 @@ public class ModelParams {
 		rowsIn(rIn);
 		colsIn(cIn);
 		if (modelType<3) {
-			rowsOut(0);
-			colsOut(0);
+			rowsOut(1);
+			colsOut(1);
 		} else {
-			
+			rowsOut(rIn);
+			colsOut(cIn);
 		}
 		attributesIn(1);
 		attributesOut(outFeatures);
@@ -183,26 +184,26 @@ public class ModelParams {
 		return (n & -n);
 	}
 	
-	private void updateScales() {
-		modelScalesMax = Math.min(log2(rowsIn), log2(colsIn));
-		modelScales(modelScales);
+	private void updateDepth() {
+		modelDepthMax = Math.min(log2(rowsIn), log2(colsIn));
+		modelDepth(modelDepth);
 	}
 	
-	public void modelScales(int mScales) {
-		if (mScales<=modelScalesMax) {
-			modelScales = mScales;
+	public void modelDepth(int mDepth) {
+		if (mDepth<=modelDepthMax) {
+			modelDepth = mDepth;
 		}
 	}
-	public int modelScales() {
-		return modelScales;
+	public int modelDepth() {
+		return modelDepth;
 	}
 	
 	public int modelScalesMax() {
-		return modelScalesMax;
+		return modelDepthMax;
 	}
 	
 	public void unitScale(int[] uScale) {
-		if (uScale.length==1 || uScale.length==modelScales) {
+		if (uScale.length>=1 && uScale.length<=modelDepth) {
 			unitScale = uScale;
 		}
 	}
@@ -220,5 +221,41 @@ public class ModelParams {
 		uScale = uScale.replace(" ", "");
 		String[] uScaleSplit = uScale.split(",");
 		unitScale = new int[uScaleSplit.length];
+	}
+	
+	public void unitComplexity(int uComplexity) {
+		if (uComplexity>=3) {
+			if (uComplexity<=16) {
+				unitComplexity = uComplexity;
+			} else {
+				unitComplexity = 16;
+			}
+		} else {
+			unitComplexity = 3;
+		}
+	}
+	public int unitComplexity() {
+		return unitComplexity;
+	}
+	
+	public void unitRepeat(int[] uRepeat) {
+		if (uRepeat.length>=1 && uRepeat.length<=modelDepth) {
+			unitRepeat = uRepeat;
+		}
+	}
+	public int[] unitRepeat() {
+		return unitRepeat;
+	}
+	public String unitRepeatString() {
+		String uRepeatStr = Integer.toString(unitRepeat[0]);
+		for (int i = 1; i < unitRepeat.length; i++) {
+			uRepeatStr += ", " + Integer.toString(unitRepeat[i]);
+		}
+		return uRepeatStr;
+	}
+	public void unitRepeat(String uRepeat) {
+		uRepeat = uRepeat.replace(" ", "");
+		String[] uRepeatSplit = uRepeat.split(",");
+		unitRepeat = new int[uRepeatSplit.length];
 	}
 }
