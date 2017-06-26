@@ -2,16 +2,18 @@ package org.umich.ij.dbj;
 
 import java.util.Arrays;
 
-import org.deeplearning4j.nn.api.Model;
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration.GraphBuilder;
+import org.deeplearning4j.nn.conf.inputs.InputType;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.Updater;
+import org.deeplearning4j.nn.conf.layers.ConvolutionLayer;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
 import org.deeplearning4j.nn.conf.layers.OutputLayer;
 import org.deeplearning4j.nn.conf.layers.SubsamplingLayer;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
+import org.jfree.util.Log;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 
@@ -315,6 +317,8 @@ public class ModelParams {
 	}
 	
 	public ComputationGraph getModel() {
+		System.out.println(unitTypeString);
+		
 		GraphBuilder model = new NeuralNetConfiguration.Builder()
 				.seed(seed)
 				.optimizationAlgo(OptimizationAlgorithm.valueOf(optimizer))
@@ -323,7 +327,10 @@ public class ModelParams {
 				.updater(Updater.valueOf(updater)).momentum(momentum)
 				.regularization(useRegularization)
 				.dropOut(dropoutRate)
-				.graphBuilder();
+				.graphBuilder()
+				.setInputTypes(InputType.convolutionalFlat(rowsIn, colsIn, attributesIn));
+		model.setBackprop(true);
+		model.setPretrain(false);
 		model.addInputs("input");
 		String inLayer = "input";
 		String outLayer = "";
@@ -335,8 +342,12 @@ public class ModelParams {
 				repeats = unitRepeat[scale];
 			}
 			switch (unitType) {
-				case SIMPLE_UNITS: outLayer = createSimpleUnit(model,scale,repeats,inLayer);
-				case INCEPTION_UNITS: outLayer = createInceptionUnit(model,scale,repeats,inLayer);
+				case SIMPLE_UNITS:
+					outLayer = createSimpleUnit(model,scale,repeats,inLayer);
+					break;
+				case INCEPTION_UNITS:
+					outLayer = createInceptionUnit(model,scale,repeats,inLayer);
+					break;
 			}
 			if (scale!=modelDepth-1) {
 				inLayer = "u" + Integer.toString(scale) + "_m";
@@ -377,6 +388,26 @@ public class ModelParams {
 	}
 	
 	public String createSimpleUnit(GraphBuilder model, int unitNum, int unitRepeat, String inLayer) {
-		return modelTypeString;
+		String unitBase = "u" + Integer.toString(unitNum) + "_" + "r";
+		int uNum = Math.min(unitNum, unitScale.length-1);
+		model.addLayer(unitBase+"0_c1",
+					   new ConvolutionLayer.Builder(2*unitScale[uNum]+1,2*unitScale[uNum]+1)
+					   	   .padding(new int[] {unitScale[uNum],unitScale[uNum]})
+					   	   .nOut(2^(unitComplexity+unitNum))
+					   	   .stride(1,1)
+					   	   .activation(Activation.RELU)
+					   	   .build(),
+					   inLayer);
+		for (int i = 1; i < unitRepeat; i++) {
+			model.addLayer(unitBase+Integer.toString(i) + "_c1",
+						   new ConvolutionLayer.Builder(2*unitScale[uNum]+1,2*unitScale[uNum]+1)
+						   	   .padding(new int[] {unitScale[uNum],unitScale[uNum]})
+						   	   .nOut(2^(unitComplexity+unitNum))
+						   	   .stride(1,1)
+						   	   .activation(Activation.RELU)
+						   	   .build(),
+						   	unitBase+Integer.toString(i-1) + "_c1");
+		}
+		return unitBase+Integer.toString(unitRepeat)+"_c1";
 	}
 }
