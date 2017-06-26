@@ -16,30 +16,22 @@ import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
+import javax.swing.JTextField;
 import javax.swing.JToggleButton;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
 import org.deeplearning4j.earlystopping.EarlyStoppingConfiguration;
 import org.deeplearning4j.earlystopping.EarlyStoppingModelSaver;
-import org.deeplearning4j.earlystopping.saver.LocalFileModelSaver;
-import org.deeplearning4j.earlystopping.scorecalc.DataSetLossCalculator;
+import org.deeplearning4j.earlystopping.saver.LocalFileGraphSaver;
+import org.deeplearning4j.earlystopping.scorecalc.DataSetLossCalculatorCG;
 import org.deeplearning4j.earlystopping.termination.IterationTerminationCondition;
 import org.deeplearning4j.earlystopping.termination.MaxEpochsTerminationCondition;
-import org.deeplearning4j.earlystopping.trainer.EarlyStoppingTrainer;
-import org.deeplearning4j.nn.api.OptimizationAlgorithm;
-import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
-import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
-import org.deeplearning4j.nn.conf.Updater;
-import org.deeplearning4j.nn.conf.layers.DenseLayer;
-import org.deeplearning4j.nn.conf.layers.OutputLayer;
-import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
-import org.deeplearning4j.nn.weights.WeightInit;
-import org.nd4j.linalg.activations.Activation;
+import org.deeplearning4j.earlystopping.trainer.EarlyStoppingGraphTrainer;
+import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
-import org.nd4j.linalg.lossfunctions.LossFunctions.LossFunction;
 import org.scijava.app.StatusService;
 import org.scijava.command.CommandService;
 import org.scijava.log.LogService;
@@ -111,11 +103,11 @@ public class DeepBlueJGUI extends JDialog{
 	private JLabel modelUnitTypeLabel;
 	private JComboBox<String> modelUnitType;
 	private JLabel modelUnitScaleLabel;
-	private ValidatedTextField<Integer> modelUnitScale;
+	private JTextField modelUnitScale;
 	private JLabel modelUnitComplexityLabel;
 	private ValidatedTextField<Integer> modelUnitComplexity;
 	private JLabel modelUnitRepeatLabel;
-	private ValidatedTextField<Integer> modelUnitRepeat;
+	private JTextField modelUnitRepeat;
 	private JButton updateSettings;
 
 	// Network Training Panel
@@ -219,11 +211,11 @@ public class DeepBlueJGUI extends JDialog{
 			modelUnitType = new JComboBox<String>(ModelParams.UNIT_TYPE_STRING);
 			modelUnitType.setFocusable(false);
 			modelUnitScaleLabel = new JLabel("Unit Scales: ");
-			modelUnitScale = new ValidatedTextField<Integer>(36, modelParams.unitScaleString(),new ValidatorInt(0,100000));
-			modelUnitComplexityLabel = new JLabel("Unit Scales: ");
+			modelUnitScale = new JTextField(modelParams.unitScaleString());
+			modelUnitComplexityLabel = new JLabel("Unit Complexity: ");
 			modelUnitComplexity = new ValidatedTextField<Integer>(36, Integer.toString(modelParams.unitComplexity()),new ValidatorInt(3,16));
 			modelUnitRepeatLabel = new JLabel("Unit Repeat: ");
-			modelUnitRepeat = new ValidatedTextField<Integer>(36, modelParams.unitRepeatString(),new ValidatorInt(0,31));
+			modelUnitRepeat = new JTextField(modelParams.unitRepeatString());
 			updateSettings = new JButton("Update Settings");
 			updateSettings.setFocusPainted(false);
 			updateSettings.setFocusable(false);
@@ -542,11 +534,20 @@ public class DeepBlueJGUI extends JDialog{
 	
 	private void initListeners() {
 		
+		modelType.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				updateModelParams();
+			}
+			
+		});
+		
 		updateSettings.addActionListener(new ActionListener() {
 
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				
+				updateModelParams();
 			}
 			
 		});
@@ -651,45 +652,46 @@ public class DeepBlueJGUI extends JDialog{
 		updateModelParams();
         
         // Create the model
-        MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
-                .seed(trainingParams.seed) //include a random seed for reproducibility
-                // use stochastic gradient descent as an optimization algorithm
-                .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-                .iterations(1)
-                .learningRate(0.001) //specify the learning rate
-                .updater(Updater.NESTEROVS).momentum(0.9) //specify the rate of change of the learning rate.
-                .regularization(true).l2(1e-4)
-                .list()
-                .layer(0, new DenseLayer.Builder() //create the first, input layer with xavier initialization
-                        .nIn(modelParams.rowsIn() * modelParams.colsIn())
-                        .nOut(1000)
-                        .activation(Activation.RELU)
-                        .weightInit(WeightInit.XAVIER)
-                        .build())
-                .layer(1, new OutputLayer.Builder(LossFunction.NEGATIVELOGLIKELIHOOD) //create hidden layer
-                        .nIn(1000)
-                        .nOut(modelParams.numClasses())
-                        .activation(Activation.SOFTMAX)
-                        .weightInit(WeightInit.XAVIER)
-                        .name("objective")
-                        .build())
-                .pretrain(false).backprop(true) //use backpropagation to adjust weights
-                .build();
-        MultiLayerNetwork model = new MultiLayerNetwork(conf);
+//        MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
+//                .seed(trainingParams.seed) //include a random seed for reproducibility
+//                // use stochastic gradient descent as an optimization algorithm
+//                .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
+//                .iterations(1)
+//                .learningRate(0.001) //specify the learning rate
+//                .updater(Updater.NESTEROVS).momentum(0.9) //specify the rate of change of the learning rate.
+//                .regularization(true).l2(1e-4)
+//                .list()
+//                .layer(0, new DenseLayer.Builder() //create the first, input layer with xavier initialization
+//                        .nIn(modelParams.rowsIn() * modelParams.colsIn())
+//                        .nOut(1000)
+//                        .activation(Activation.RELU)
+//                        .weightInit(WeightInit.XAVIER)
+//                        .build())
+//                .layer(1, new OutputLayer.Builder(LossFunction.NEGATIVELOGLIKELIHOOD) //create hidden layer
+//                        .nIn(1000)
+//                        .nOut(modelParams.numClasses())
+//                        .activation(Activation.SOFTMAX)
+//                        .weightInit(WeightInit.XAVIER)
+//                        .name("objective")
+//                        .build())
+//                .pretrain(false).backprop(true) //use backpropagation to adjust weights
+//                .build();
+//        MultiLayerNetwork model = new MultiLayerNetwork(conf);
+		ComputationGraph model = modelParams.getModel();
         model.init();
 
         String tempDir = System.getProperty("user.home");
         //String exampleDirectory = FilenameUtils.concat(tempDir, "TrainedNetworks/");
-        EarlyStoppingModelSaver saver = new LocalFileModelSaver(tempDir);
-        EarlyStoppingConfiguration esConf = new EarlyStoppingConfiguration.Builder()
+        EarlyStoppingModelSaver<ComputationGraph> saver = new LocalFileGraphSaver(tempDir);
+        EarlyStoppingConfiguration<ComputationGraph> esConf = new EarlyStoppingConfiguration.Builder<ComputationGraph>()
                 .epochTerminationConditions(new MaxEpochsTerminationCondition(trainingParams.numEpochs))
                 .evaluateEveryNEpochs(1)
-                .iterationTerminationConditions(trainInterrupt) //Max of 20 minutes
-                .scoreCalculator(new DataSetLossCalculator(testData, true))     //Calculate test set score
+                .iterationTerminationConditions(trainInterrupt)
+                .scoreCalculator(new DataSetLossCalculatorCG(testData, true))     //Calculate test set score
                 .modelSaver(saver)
                 .build();
         
-        EarlyStoppingTrainer trainer = new EarlyStoppingTrainer(esConf,model,trainData);
+        EarlyStoppingGraphTrainer trainer = new EarlyStoppingGraphTrainer(esConf,model,trainData);
         
 		// Set up the Progress listener
         ProgressPlotListener listener = new ProgressPlotListener(10);
@@ -716,10 +718,42 @@ public class DeepBlueJGUI extends JDialog{
 	}
 	
 	private void updateModelParams() {
+		// Set model parameters that are set in the GUI
 		modelParams.modelType(modelType.getSelectedIndex());
-		modelParams.numClasses(Integer.parseInt(modelNumClass.getText()));
 		modelParams.colsIn(Integer.parseInt(modelInpWidth.getText()));
 		modelParams.rowsIn(Integer.parseInt(modelInpHeight.getText()));
+		modelParams.attributesIn(Integer.parseInt(modelInpAttributes.getText()));
+		modelParams.numClasses(Integer.parseInt(modelNumClass.getText()));
+		modelParams.attributesOut(Integer.parseInt(modelNumAttributes.getText()));
+		modelParams.modelDepth(Integer.parseInt(modelDepth.getText()));
+		modelParams.rowsOut(Integer.parseInt(modelOutWidth.getText()));
+		modelParams.colsOut(Integer.parseInt(modelOutHeight.getText()));
+		modelParams.unitType(modelUnitType.getSelectedIndex());
+		modelParams.unitScale(modelUnitScale.getText());
+		modelParams.unitRepeat(modelUnitRepeat.getText());
+		modelParams.unitComplexity(Integer.parseInt(modelUnitComplexity.getText()));
+		
+		// Update GUI based on model restrictions
+		modelDepth.setText(Integer.toString(modelParams.modelDepth()));
+		modelDepthMax.setText(Integer.toString(modelParams.modelScalesMax()));
+		modelOutWidth.setText(Integer.toString(modelParams.colsOut()));
+		modelOutHeight.setText(Integer.toString(modelParams.rowsOut()));
+		modelNumClass.setText(Integer.toString(modelParams.numClasses()));
+		modelNumAttributes.setText(Integer.toString(modelParams.attributesOut()));
+		modelUnitRepeat.setText(modelParams.unitRepeatString());
+		modelUnitScale.setText(modelParams.unitScaleString());
+		
+		if (modelParams.modelType()==0 || modelParams.modelType()==3) {
+			modelNumClassLabel.setVisible(true);
+			modelNumClass.setVisible(true);
+			modelNumAttributes.setVisible(false);
+			modelNumAttributesLabel.setVisible(false);
+		} else {
+			modelNumClassLabel.setVisible(false);
+			modelNumClass.setVisible(false);
+			modelNumAttributes.setVisible(true);
+			modelNumAttributesLabel.setVisible(true);
+		}
 	}
 	
 	private class TrainInterrupt implements IterationTerminationCondition {

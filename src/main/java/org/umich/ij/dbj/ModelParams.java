@@ -2,7 +2,18 @@ package org.umich.ij.dbj;
 
 import java.util.Arrays;
 
+import org.deeplearning4j.nn.api.Model;
+import org.deeplearning4j.nn.api.OptimizationAlgorithm;
+import org.deeplearning4j.nn.conf.ComputationGraphConfiguration.GraphBuilder;
+import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
+import org.deeplearning4j.nn.conf.Updater;
+import org.deeplearning4j.nn.conf.layers.DenseLayer;
+import org.deeplearning4j.nn.conf.layers.OutputLayer;
+import org.deeplearning4j.nn.conf.layers.SubsamplingLayer;
+import org.deeplearning4j.nn.graph.ComputationGraph;
+import org.deeplearning4j.nn.weights.WeightInit;
 import org.nd4j.linalg.activations.Activation;
+import org.nd4j.linalg.lossfunctions.LossFunctions;
 
 public class ModelParams {
 	public static final int IMAGE_CLASSIFICATION = 0;
@@ -45,12 +56,19 @@ public class ModelParams {
 	private int unitComplexity = 5;
 	private int[] unitScale = {1};
 	private String unitActivation = UNIT_ACTIVATION_STRING[0];
-	public boolean useBatchNorm = false;
-	public boolean useDropOut = false;
-	public double dropoutRate = 0.5;
 	private int modelDepth = 1;
 	private int modelDepthMax = 1;
+	
+	// Methods that need to be implemented into the GUI
+	private int seed = 0;
 	private boolean isTrained = false;
+	public boolean useBatchNorm = false;
+	public boolean useRegularization = true;
+	public double dropoutRate = 0.5;
+	public double learningRate = 0.001;
+	public String updater = Updater.NESTEROVS.toString();
+	public String optimizer = OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT.toString();
+	public double momentum = 0.9;
 	
 	public ModelParams(int mType, int rIn, int cIn,int outFeatures) {
 		modelType(mType);
@@ -138,6 +156,7 @@ public class ModelParams {
 	
 	public void rowsIn(int rIn) {
 		rowsIn = rIn;
+		updateMaxDepth();
 	}
 	public int rowsIn() {
 		return rowsIn;
@@ -145,6 +164,7 @@ public class ModelParams {
 	
 	public void colsIn(int cIn) {
 		colsIn = cIn;
+		updateMaxDepth();
 	}
 	public int colsIn() {
 		return colsIn;
@@ -169,7 +189,7 @@ public class ModelParams {
 	}
 	
 	public void attributesOut(int nAttributes) {
-		if (modelType==2 || modelType==5) {
+		if (modelType!=0 || modelType!=3) {
 			attributesOut = nAttributes;
 		} else {
 			attributesOut = 0;
@@ -181,10 +201,10 @@ public class ModelParams {
 	
 	private int log2(int n) {
 		// returns largest integer power of 2 that divides n
-		return (n & -n);
+		return Integer.numberOfTrailingZeros(n & -n)+1;
 	}
 	
-	private void updateDepth() {
+	private void updateMaxDepth() {
 		modelDepthMax = Math.min(log2(rowsIn), log2(colsIn));
 		modelDepth(modelDepth);
 	}
@@ -220,7 +240,24 @@ public class ModelParams {
 	public void unitScale(String uScale) {
 		uScale = uScale.replace(" ", "");
 		String[] uScaleSplit = uScale.split(",");
-		unitScale = new int[uScaleSplit.length];
+		if (uScaleSplit.length>1) {
+			unitScale = new int[modelDepth];
+		} else {
+			unitScale = new int[1];
+		}
+		for (int i = 0; i < unitScale.length; i++) {
+			int scale = 0;
+			if (uScaleSplit.length>=modelDepth) {
+				scale = Integer.parseInt(uScaleSplit[i]);
+			} else if (uScaleSplit.length<modelDepth) {
+				if (i<uScaleSplit.length) {
+					scale = Integer.parseInt(uScaleSplit[i]);
+				} else {
+					scale = Integer.parseInt(uScaleSplit[uScaleSplit.length-1]);
+				}
+			}
+			unitScale[i] = scale;
+		}
 	}
 	
 	public void unitComplexity(int uComplexity) {
@@ -257,5 +294,89 @@ public class ModelParams {
 		uRepeat = uRepeat.replace(" ", "");
 		String[] uRepeatSplit = uRepeat.split(",");
 		unitRepeat = new int[uRepeatSplit.length];
+		if (uRepeatSplit.length>1) {
+			unitRepeat = new int[modelDepth];
+		} else {
+			unitRepeat = new int[1];
+		}
+		for (int i = 0; i < unitRepeat.length; i++) {
+			int scale = 0;
+			if (uRepeatSplit.length>=modelDepth) {
+				scale = Integer.parseInt(uRepeatSplit[i]);
+			} else if (uRepeatSplit.length<modelDepth) {
+				if (i<uRepeatSplit.length) {
+					scale = Integer.parseInt(uRepeatSplit[i]);
+				} else {
+					scale = Integer.parseInt(uRepeatSplit[uRepeatSplit.length-1]);
+				}
+			}
+			unitRepeat[i] = scale;
+		}
+	}
+	
+	public ComputationGraph getModel() {
+		GraphBuilder model = new NeuralNetConfiguration.Builder()
+				.seed(seed)
+				.optimizationAlgo(OptimizationAlgorithm.valueOf(optimizer))
+				.iterations(1)
+				.learningRate(learningRate)
+				.updater(Updater.valueOf(updater)).momentum(momentum)
+				.regularization(useRegularization)
+				.dropOut(dropoutRate)
+				.graphBuilder();
+		model.addInputs("input");
+		String inLayer = "input";
+		String outLayer = "";
+		for (int scale = 0; scale < modelDepth; scale++) {
+			int repeats = 0;
+			if (unitRepeat.length==1) {
+				repeats = unitRepeat[0];
+			} else {
+				repeats = unitRepeat[scale];
+			}
+			switch (unitType) {
+				case SIMPLE_UNITS: outLayer = createSimpleUnit(model,scale,repeats,inLayer);
+				case INCEPTION_UNITS: outLayer = createInceptionUnit(model,scale,repeats,inLayer);
+			}
+			if (scale!=modelDepth-1) {
+				inLayer = "u" + Integer.toString(scale) + "_m";
+				model.addLayer(inLayer,
+							   new SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
+							   	   .kernelSize(2,2)
+							   	   .stride(2,2)
+							   	   .build(),
+						   	   outLayer);
+				outLayer = inLayer;
+			}
+		}
+		int nOut = 0;
+		if (modelType==IMAGE_CLASSIFICATION || modelType==PIXEL_CLASSIFICATION) {
+			nOut = numClasses;
+		} else {
+			nOut = attributesOut;
+		}
+		model.addLayer("dense",
+					   new DenseLayer.Builder()
+					   	   .activation(Activation.RELU)
+					   	   .weightInit(WeightInit.XAVIER)
+					   	   .nOut(2*nOut)
+					   	   .build(),
+				   	   outLayer);
+		model.addLayer("classification",
+					   new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
+					   	   .nOut(nOut)
+					   	   .activation(Activation.SOFTMAX)
+					   	   .build(),
+					   "dense");
+		model.setOutputs("classification");
+		return new ComputationGraph(model.build());
+	}
+	
+	public String createInceptionUnit(GraphBuilder model, int unitNum, int unitRepeat,String inLayer) {
+		return modelTypeString;
+	}
+	
+	public String createSimpleUnit(GraphBuilder model, int unitNum, int unitRepeat, String inLayer) {
+		return modelTypeString;
 	}
 }
