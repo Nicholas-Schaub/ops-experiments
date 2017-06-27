@@ -606,8 +606,8 @@ public class DeepBlueJGUI extends JDialog{
 
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
-				trainModel();
-				//thread.run(() -> {trainModel();});
+				//trainModel();
+				thread.run(() -> {trainModel();});
 			}			
 			
 		});

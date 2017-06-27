@@ -4,16 +4,15 @@ import java.util.Arrays;
 
 import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration.GraphBuilder;
-import org.deeplearning4j.nn.conf.inputs.InputType;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.Updater;
+import org.deeplearning4j.nn.conf.inputs.InputType;
 import org.deeplearning4j.nn.conf.layers.ConvolutionLayer;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
 import org.deeplearning4j.nn.conf.layers.OutputLayer;
 import org.deeplearning4j.nn.conf.layers.SubsamplingLayer;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.deeplearning4j.nn.weights.WeightInit;
-import org.jfree.util.Log;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 
@@ -324,8 +323,9 @@ public class ModelParams {
 				.optimizationAlgo(OptimizationAlgorithm.valueOf(optimizer))
 				.iterations(1)
 				.learningRate(learningRate)
+		   	    .weightInit(WeightInit.XAVIER)
 				.updater(Updater.valueOf(updater)).momentum(momentum)
-				.regularization(useRegularization)
+				.regularization(useRegularization).l2(0.0005)
 				.dropOut(dropoutRate)
 				.graphBuilder()
 				.setInputTypes(InputType.convolutionalFlat(rowsIn, colsIn, attributesIn));
@@ -369,8 +369,7 @@ public class ModelParams {
 		model.addLayer("dense",
 					   new DenseLayer.Builder()
 					   	   .activation(Activation.RELU)
-					   	   .weightInit(WeightInit.XAVIER)
-					   	   .nOut(2*nOut)
+					   	   .nOut(2^(modelDepth+unitComplexity))
 					   	   .build(),
 				   	   outLayer);
 		model.addLayer("classification",
@@ -388,7 +387,7 @@ public class ModelParams {
 	}
 	
 	public String createSimpleUnit(GraphBuilder model, int unitNum, int unitRepeat, String inLayer) {
-		String unitBase = "u" + Integer.toString(unitNum) + "_" + "r";
+		String unitBase = "u" + Integer.toString(unitNum) + "_r";
 		int uNum = Math.min(unitNum, unitScale.length-1);
 		model.addLayer(unitBase+"0_c1",
 					   new ConvolutionLayer.Builder(2*unitScale[uNum]+1,2*unitScale[uNum]+1)
@@ -398,7 +397,7 @@ public class ModelParams {
 					   	   .activation(Activation.RELU)
 					   	   .build(),
 					   inLayer);
-		for (int i = 1; i < unitRepeat; i++) {
+		for (int i = 1; i < unitRepeat+1; i++) {
 			model.addLayer(unitBase+Integer.toString(i) + "_c1",
 						   new ConvolutionLayer.Builder(2*unitScale[uNum]+1,2*unitScale[uNum]+1)
 						   	   .padding(new int[] {unitScale[uNum],unitScale[uNum]})
