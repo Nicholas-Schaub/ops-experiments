@@ -320,15 +320,13 @@ public class ModelParams {
 		
 		GraphBuilder model = new NeuralNetConfiguration.Builder()
 				.seed(seed)
-				.optimizationAlgo(OptimizationAlgorithm.valueOf(optimizer))
+				.optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
 				.iterations(1)
-				.learningRate(learningRate)
+				.learningRate(0.01)
 		   	    .weightInit(WeightInit.XAVIER)
-				.updater(Updater.valueOf(updater)).momentum(momentum)
-				.regularization(useRegularization).l2(0.0005)
-				.dropOut(dropoutRate)
-				.graphBuilder()
-				.setInputTypes(InputType.convolutionalFlat(rowsIn, colsIn, attributesIn));
+				.updater(Updater.NESTEROVS).momentum(0.9)
+				.regularization(true).l2(0.0005)
+				.graphBuilder();
 		model.setBackprop(true);
 		model.setPretrain(false);
 		model.addInputs("input");
@@ -358,27 +356,38 @@ public class ModelParams {
 							   	   .build(),
 						   	   outLayer);
 				outLayer = inLayer;
+				System.out.println(inLayer + " -> " + outLayer);
 			}
 		}
-		int nOut = 0;
-		if (modelType==IMAGE_CLASSIFICATION || modelType==PIXEL_CLASSIFICATION) {
-			nOut = numClasses;
-		} else {
-			nOut = attributesOut;
-		}
-		model.addLayer("dense",
+		inLayer = outLayer;
+		outLayer = "dense";
+		int nIn = (int) Math.pow(2, modelDepth+unitComplexity-1);
+		int nOut = (int) Math.pow(2, modelDepth+unitComplexity);
+		model.addLayer(outLayer,
 					   new DenseLayer.Builder()
 					   	   .activation(Activation.RELU)
-					   	   .nOut(2^(modelDepth+unitComplexity))
+					   	   .nIn(nIn)
+					   	   .nOut(nOut)
 					   	   .build(),
-				   	   outLayer);
-		model.addLayer("classification",
+				   	   inLayer);
+		System.out.println(inLayer + " " + Integer.toString(nIn) + " -> " + outLayer + " " + Integer.toString(nOut));
+		inLayer = outLayer;
+		outLayer = "classification";
+		nIn = nOut;
+		nOut = attributesOut;
+		if (modelType==IMAGE_CLASSIFICATION || modelType==PIXEL_CLASSIFICATION) {
+			nOut = numClasses;
+		}
+		model.addLayer(outLayer,
 					   new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
+					   	   .nIn(nIn)
 					   	   .nOut(nOut)
 					   	   .activation(Activation.SOFTMAX)
 					   	   .build(),
 					   "dense");
+		System.out.println(inLayer + " " + Integer.toString(nIn) + " -> " + outLayer + " " + Integer.toString(nOut));
 		model.setOutputs("classification");
+		model.setInputTypes(InputType.convolutionalFlat(rowsIn, colsIn, attributesIn));
 		return new ComputationGraph(model.build());
 	}
 	
@@ -389,24 +398,37 @@ public class ModelParams {
 	public String createSimpleUnit(GraphBuilder model, int unitNum, int unitRepeat, String inLayer) {
 		String unitBase = "u" + Integer.toString(unitNum) + "_r";
 		int uNum = Math.min(unitNum, unitScale.length-1);
-		model.addLayer(unitBase+"0_c1",
+		int nIn = attributesIn;
+		if (unitNum>0) {
+			nIn = (int) Math.pow(2, unitComplexity+unitNum-1);
+		}
+		int nOut = (int) Math.pow(2, unitComplexity+unitNum);
+		String outLayer = unitBase+"0_c1";
+		model.addLayer(outLayer,
 					   new ConvolutionLayer.Builder(2*unitScale[uNum]+1,2*unitScale[uNum]+1)
 					   	   .padding(new int[] {unitScale[uNum],unitScale[uNum]})
-					   	   .nOut(2^(unitComplexity+unitNum))
+					   	   .nIn(nIn)
+					   	   .nOut(nOut)
 					   	   .stride(1,1)
 					   	   .activation(Activation.RELU)
 					   	   .build(),
 					   inLayer);
+		System.out.println(inLayer + " " + Integer.toString(nIn) + " -> " + outLayer + " " + Integer.toString(nOut));
+		nIn = nOut;
 		for (int i = 1; i < unitRepeat+1; i++) {
-			model.addLayer(unitBase+Integer.toString(i) + "_c1",
+			outLayer = unitBase+Integer.toString(i-1) + "_c1";
+			inLayer = unitBase+Integer.toString(i) + "_c1";
+			model.addLayer(outLayer + "_c1",
 						   new ConvolutionLayer.Builder(2*unitScale[uNum]+1,2*unitScale[uNum]+1)
 						   	   .padding(new int[] {unitScale[uNum],unitScale[uNum]})
-						   	   .nOut(2^(unitComplexity+unitNum))
+						   	   .nIn(nIn)
+						   	   .nOut(nOut)
 						   	   .stride(1,1)
 						   	   .activation(Activation.RELU)
 						   	   .build(),
-						   	unitBase+Integer.toString(i-1) + "_c1");
+						   	inLayer);
+			System.out.println(inLayer + " " + Integer.toString(nIn) + " -> " + outLayer + " " + Integer.toString(nOut));
 		}
-		return unitBase+Integer.toString(unitRepeat)+"_c1";
+		return outLayer;
 	}
 }

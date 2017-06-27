@@ -28,6 +28,7 @@ import org.deeplearning4j.earlystopping.scorecalc.DataSetLossCalculatorCG;
 import org.deeplearning4j.earlystopping.termination.IterationTerminationCondition;
 import org.deeplearning4j.earlystopping.termination.MaxEpochsTerminationCondition;
 import org.deeplearning4j.earlystopping.trainer.EarlyStoppingGraphTrainer;
+import org.deeplearning4j.nn.api.Layer;
 import org.deeplearning4j.nn.graph.ComputationGraph;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
@@ -680,6 +681,16 @@ public class DeepBlueJGUI extends JDialog{
 //        MultiLayerNetwork model = new MultiLayerNetwork(conf);
 		ComputationGraph model = modelParams.getModel();
         model.init();
+        
+        for (int layer = 0; layer<model.getNumLayers(); layer++) {
+        	Layer gLabel = model.getLayer(layer);
+        	int[] dim = gLabel.params().shape();
+        	System.out.println(gLabel.toString());
+        	System.out.println(layer);
+        	for (int d = 0; d<dim.length; d++) {
+        		System.out.println(dim[d]);
+        	}
+        }
 
         String tempDir = System.getProperty("user.home");
         //String exampleDirectory = FilenameUtils.concat(tempDir, "TrainedNetworks/");
