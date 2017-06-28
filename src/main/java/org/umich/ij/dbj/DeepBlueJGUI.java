@@ -682,15 +682,15 @@ public class DeepBlueJGUI extends JDialog{
 		ComputationGraph model = modelParams.getModel();
         model.init();
         
-        for (int layer = 0; layer<model.getNumLayers(); layer++) {
-        	Layer gLabel = model.getLayer(layer);
-        	int[] dim = gLabel.params().shape();
-        	System.out.println(gLabel.toString());
-        	System.out.println(layer);
-        	for (int d = 0; d<dim.length; d++) {
-        		System.out.println(dim[d]);
-        	}
-        }
+//        for (int layer = 0; layer<model.getNumLayers(); layer++) {
+//        	Layer gLabel = model.getLayer(layer);
+//        	int[] dim = gLabel.params().shape();
+//        	System.out.println(gLabel.toString());
+//        	System.out.println(layer);
+//        	for (int d = 0; d<dim.length; d++) {
+//        		System.out.println(dim[d]);
+//        	}
+//        }
 
         String tempDir = System.getProperty("user.home");
         //String exampleDirectory = FilenameUtils.concat(tempDir, "TrainedNetworks/");

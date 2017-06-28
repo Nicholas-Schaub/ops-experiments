@@ -366,7 +366,7 @@ public class ModelParams {
 		model.addLayer(outLayer,
 					   new DenseLayer.Builder()
 					   	   .activation(Activation.RELU)
-					   	   .nIn(nIn)
+					   	   //.nIn(nIn)
 					   	   .nOut(nOut)
 					   	   .build(),
 				   	   inLayer);
@@ -380,7 +380,7 @@ public class ModelParams {
 		}
 		model.addLayer(outLayer,
 					   new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
-					   	   .nIn(nIn)
+					   	   //.nIn(nIn)
 					   	   .nOut(nOut)
 					   	   .activation(Activation.SOFTMAX)
 					   	   .build(),
@@ -407,7 +407,7 @@ public class ModelParams {
 		model.addLayer(outLayer,
 					   new ConvolutionLayer.Builder(2*unitScale[uNum]+1,2*unitScale[uNum]+1)
 					   	   .padding(new int[] {unitScale[uNum],unitScale[uNum]})
-					   	   .nIn(nIn)
+					   	   //.nIn(nIn)
 					   	   .nOut(nOut)
 					   	   .stride(1,1)
 					   	   .activation(Activation.RELU)
@@ -421,7 +421,7 @@ public class ModelParams {
 			model.addLayer(outLayer + "_c1",
 						   new ConvolutionLayer.Builder(2*unitScale[uNum]+1,2*unitScale[uNum]+1)
 						   	   .padding(new int[] {unitScale[uNum],unitScale[uNum]})
-						   	   .nIn(nIn)
+						   	   //.nIn(nIn)
 						   	   .nOut(nOut)
 						   	   .stride(1,1)
 						   	   .activation(Activation.RELU)
