@@ -392,33 +392,15 @@ public class ModelParams {
 	}
 	
 	public String createInceptionUnit(GraphBuilder model, int unitNum, int unitRepeat,String inLayer) {
-		return modelTypeString;
-	}
-	
-	public String createSimpleUnit(GraphBuilder model, int unitNum, int unitRepeat, String inLayer) {
-		String unitBase = "u" + Integer.toString(unitNum) + "_r";
+		// Number of features to generate at each scale
+		
+		
+		String unitBase = "u" + Integer.toString(unitNum) + "_x";
 		int uNum = Math.min(unitNum, unitScale.length-1);
-		int nIn = attributesIn;
-		if (unitNum>0) {
-			nIn = (int) Math.pow(2, unitComplexity+unitNum-1);
-		}
 		int nOut = (int) Math.pow(2, unitComplexity+unitNum);
-		String outLayer = unitBase+"0_c1";
-		model.addLayer(outLayer,
-					   new ConvolutionLayer.Builder(2*unitScale[uNum]+1,2*unitScale[uNum]+1)
-					   	   .padding(new int[] {unitScale[uNum],unitScale[uNum]})
-					   	   //.nIn(nIn)
-					   	   .nOut(nOut)
-					   	   .stride(1,1)
-					   	   .activation(Activation.RELU)
-					   	   .build(),
-					   inLayer);
-		System.out.println(inLayer + " " + Integer.toString(nIn) + " -> " + outLayer + " " + Integer.toString(nOut));
-		nIn = nOut;
-		for (int i = 1; i < unitRepeat+1; i++) {
-			outLayer = unitBase+Integer.toString(i-1) + "_c1";
-			inLayer = unitBase+Integer.toString(i) + "_c1";
-			model.addLayer(outLayer + "_c1",
+		for (int i = 0; i < unitRepeat+1; i++) {
+			String outLayer = unitBase + Integer.toString(i) + "_c";
+			model.addLayer(outLayer,
 						   new ConvolutionLayer.Builder(2*unitScale[uNum]+1,2*unitScale[uNum]+1)
 						   	   .padding(new int[] {unitScale[uNum],unitScale[uNum]})
 						   	   //.nIn(nIn)
@@ -427,8 +409,33 @@ public class ModelParams {
 						   	   .activation(Activation.RELU)
 						   	   .build(),
 						   	inLayer);
-			System.out.println(inLayer + " " + Integer.toString(nIn) + " -> " + outLayer + " " + Integer.toString(nOut));
+			System.out.println(inLayer + " -> " + outLayer);
+			inLayer = outLayer;
 		}
-		return outLayer;
+		return inLayer;
+	}
+	
+	public String createSimpleUnit(GraphBuilder model, int unitNum, int unitRepeat, String inLayer) {
+		String unitBase = "u" + Integer.toString(unitNum) + "_x";
+		int uNum = Math.min(unitNum, unitScale.length-1);
+		int nOut = (int) Math.pow(2, unitComplexity+unitNum);
+		for (int i = 0; i < unitRepeat+1; i++) {
+			String outLayer = unitBase + Integer.toString(i) + "_c";
+			layer(model,inLayer,outLayer,unitScale[uNum],nOut);
+			inLayer = outLayer;
+		}
+		return inLayer;
+	}
+	
+	private void layer(GraphBuilder model, String inLayer, String outLayer, int scale, int numOut) {
+		model.addLayer(outLayer,
+					   new ConvolutionLayer.Builder(2*scale+1,2*scale+1)
+					   	   .padding(new int[] {scale,scale})
+					   	   .nOut(numOut)
+					   	   .stride(1,1)
+					   	   .activation(Activation.RELU)
+					   	   .build(),
+					   	inLayer);
+		System.out.println(inLayer + " -> " + outLayer);
 	}
 }
