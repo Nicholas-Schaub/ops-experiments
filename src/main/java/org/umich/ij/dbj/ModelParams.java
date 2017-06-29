@@ -6,6 +6,7 @@ import org.deeplearning4j.nn.api.OptimizationAlgorithm;
 import org.deeplearning4j.nn.conf.ComputationGraphConfiguration.GraphBuilder;
 import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
 import org.deeplearning4j.nn.conf.Updater;
+import org.deeplearning4j.nn.conf.graph.MergeVertex;
 import org.deeplearning4j.nn.conf.inputs.InputType;
 import org.deeplearning4j.nn.conf.layers.ConvolutionLayer;
 import org.deeplearning4j.nn.conf.layers.DenseLayer;
@@ -32,8 +33,12 @@ public class ModelParams {
 	
 	public static final int SIMPLE_UNITS = 0;
 	public static final int INCEPTION_UNITS = 1;
+	public static final int REDUCED_SIMPLE_UNITS = 2;
+	public static final int MINCEPTION_UNITS = 3;
 	public static final String[] UNIT_TYPE_STRING = {"Simple",
-													 "Inception"};
+													 "Inception",
+													 "Reduced Simple",
+													 "MInception"};
 	
 	public static final String[] UNIT_ACTIVATION_STRING = Arrays.stream(Activation.values()).map(Enum::name).toArray(String[]::new);
 
@@ -346,12 +351,18 @@ public class ModelParams {
 				case INCEPTION_UNITS:
 					outLayer = createInceptionUnit(model,scale,repeats,inLayer);
 					break;
+				case REDUCED_SIMPLE_UNITS:
+					outLayer = createSimpleLRUnit(model,scale,repeats,inLayer);
+					break;
+				case MINCEPTION_UNITS:
+					outLayer = createMInceptionUnit(model,scale,repeats,inLayer);
+					break;
 			}
 			if (scale!=modelDepth-1) {
-				inLayer = "u" + Integer.toString(scale) + "_m";
-				maxLayer(model,inLayer,outLayer,2,2);
-				outLayer = inLayer;
-				System.out.println(inLayer + " -> " + outLayer);
+				inLayer = outLayer;
+				outLayer = "u" + Integer.toString(scale) + "_m";
+				maxLayer(model,inLayer,outLayer,2,2,0);
+				inLayer = outLayer;
 			}
 		}
 		inLayer = outLayer;
@@ -373,7 +384,6 @@ public class ModelParams {
 		}
 		model.addLayer(outLayer,
 					   new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
-					   	   //.nIn(nIn)
 					   	   .nOut(nOut)
 					   	   .activation(Activation.SOFTMAX)
 					   	   .build(),
@@ -391,21 +401,68 @@ public class ModelParams {
 		
 		for (int i = 0; i < unitRepeat+1; i++) {
 			// All inception units must have at least 2 layers: a 1x1 filter and a max -> 1x1 filter
-			String[] mergeLayers = new String[unitScale[unitNum]];
+			String[] mergeLayers = new String[unitScale[uNum]+2];
 			// 1x1 filter
 			mergeLayers[0] = unitBase + Integer.toString(i) + "_s0_c";
 			convLayer(model,inLayer,mergeLayers[0],0,totalOut/2);
-			// max -> 1x1 filter
+			// 3x3 max -> 1x1 filter
 			String dScale = unitBase + Integer.toString(i) + "_s0_m";
-			maxLayer(model,inLayer,dScale,3,1);
+			maxLayer(model,inLayer,dScale,3,1,1);
 			mergeLayers[1]= unitBase + Integer.toString(i) + "_s0_d";
-			convLayer(model,dScale,mergeLayers[0],0,totalOut/(int) Math.pow(2, unitScale[unitNum]));
-					
-			for (int j = 1; j < unitScale[unitNum]; j++) {
-				dScale = unitBase + Integer.toString(i) + "_s0_m";
+			convLayer(model,dScale,mergeLayers[1],0,totalOut/(int) Math.pow(2, unitScale[uNum] + 1));
+			
+			// Create additional layers at different scales
+			for (int j = 1; j < unitScale[uNum]+1; j++) {
+				dScale = unitBase + Integer.toString(i) + "_s" + Integer.toString(j) + "_d";
+				convLayer(model,inLayer,dScale,0,totalOut/(int) Math.pow(2, j + 2));
+				mergeLayers[j+1] = unitBase + Integer.toString(i) + "_s" + Integer.toString(j) + "_c";
+				convLayer(model,dScale,mergeLayers[j+1],j,totalOut/(int) Math.pow(2, j + 1));
 			}
-
-			inLayer = outLayer;
+			inLayer = unitBase + Integer.toString(i) + "_merge";
+			for (int k = 0; k < mergeLayers.length-1; k++) {
+				System.out.print(mergeLayers[k] + ", ");
+			}
+			System.out.print(mergeLayers[mergeLayers.length-1] + " -> " + inLayer);
+			System.out.println();
+			model.addVertex(inLayer, new MergeVertex(), mergeLayers);
+		}
+		return inLayer;
+	}
+	
+	public String createMInceptionUnit(GraphBuilder model, int unitNum, int unitRepeat,String inLayer) {
+		String unitBase = "u" + Integer.toString(unitNum) + "_x";
+		int uNum = Math.min(unitNum, unitScale.length-1);
+		int totalOut = (int) Math.pow(2, unitComplexity+unitNum);
+		
+		for (int i = 0; i < unitRepeat+1; i++) {
+			// All inception units must have at least 2 layers: a 1x1 filter and a max -> 1x1 filter
+			String[] mergeLayers = new String[unitScale[uNum]+2];
+			// 1x1 filter
+			mergeLayers[0] = unitBase + Integer.toString(i) + "_s0_c";
+			convLayer(model,inLayer,mergeLayers[0],0,totalOut/2);
+			// In the original inception model, a 3x3 max filter was applied followed by 1x1 filter.
+			// To increase speed, reverse the order.
+			// 1x1 filter -> 3x3 max
+			String dScale = unitBase + Integer.toString(i) + "_s0_d";
+			convLayer(model,inLayer,dScale,0,totalOut/(int) Math.pow(2, unitScale[uNum] + 1));
+			mergeLayers[1] = unitBase + Integer.toString(i) + "_s0_m";
+			maxLayer(model,dScale,mergeLayers[1],3,1,1);
+			
+			// Create additional layers at different scales
+			for (int j = 1; j < unitScale[uNum]+1; j++) {
+				dScale = unitBase + Integer.toString(i) + "_s" + Integer.toString(j) + "_d";
+				int kappa = totalOut/(int) Math.pow(2, j + 2);
+				convLayer(model,inLayer,dScale,0,kappa);
+				mergeLayers[j+1] = unitBase + Integer.toString(i) + "_s" + Integer.toString(j) + "_c";
+				convLRLayer(model,dScale,mergeLayers[j+1],j,kappa*2,kappa);
+			}
+			inLayer = unitBase + Integer.toString(i) + "_merge";
+			for (int k = 0; k < mergeLayers.length-1; k++) {
+				System.out.print(mergeLayers[k] + ", ");
+			}
+			System.out.print(mergeLayers[mergeLayers.length-1] + " -> " + inLayer);
+			System.out.println();
+			model.addVertex(inLayer, new MergeVertex(), mergeLayers);
 		}
 		return inLayer;
 	}
@@ -422,13 +479,31 @@ public class ModelParams {
 		return inLayer;
 	}
 	
-	private void maxLayer(GraphBuilder model, String inLayer, String outLayer, int scale, int stride) {
-		model.addLayer(inLayer,
+	public String createSimpleLRUnit(GraphBuilder model, int unitNum, int unitRepeat, String inLayer) {
+		String unitBase = "u" + Integer.toString(unitNum) + "_x";
+		int uNum = Math.min(unitNum, unitScale.length-1);
+		int nOut = (int) Math.pow(2, unitComplexity+unitNum);
+		int kappa = (int) Math.min(1, nOut/4);
+		for (int i = 0; i < unitRepeat+1; i++) {
+			String outLayer = unitBase + Integer.toString(i) + "_c";
+			convLRLayer(model,inLayer,outLayer,unitScale[uNum],nOut,kappa);
+			inLayer = outLayer;
+		}
+		return inLayer;
+	}
+	
+	private void mergeLayer(GraphBuilder model, String[] mergeLayers, String outLayer) {
+		
+	}
+	
+	private void maxLayer(GraphBuilder model, String inLayer, String outLayer, int scale, int stride, int pad) {
+		model.addLayer(outLayer,
 					   new SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
 					   	   .kernelSize(scale,scale)
+					   	   .padding(new int[] {pad, pad})
 					   	   .stride(stride,stride)
 					   	   .build(),
-				   	   outLayer);
+				   	   inLayer);
 		System.out.println(inLayer + " -> " + outLayer);
 	}
 	
@@ -442,5 +517,26 @@ public class ModelParams {
 					   	   .build(),
 					   	inLayer);
 		System.out.println(inLayer + " -> " + outLayer);
+	}
+	
+	private void convLRLayer(GraphBuilder model, String inLayer, String outLayer, int scale, int numOut, int kappa) {
+		String lrLayer = inLayer + "_lr";
+		System.out.println(inLayer + " -> " + lrLayer);
+		model.addLayer(lrLayer,
+					   new ConvolutionLayer.Builder(2*scale+1,1)
+					   	   .nOut(kappa)
+					   	   .stride(1,1)
+					   	   .activation(Activation.RELU)
+					   	   .build(),
+					   	inLayer);
+		model.addLayer(outLayer,
+				   new ConvolutionLayer.Builder(1,2*scale+1)
+				   	   .padding(new int[] {scale,scale})
+				   	   .nOut(numOut)
+				   	   .stride(1,1)
+				   	   .activation(Activation.RELU)
+				   	   .build(),
+				   	lrLayer);
+		System.out.println(lrLayer + " -> " + outLayer);
 	}
 }
