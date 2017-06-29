@@ -349,19 +349,13 @@ public class ModelParams {
 			}
 			if (scale!=modelDepth-1) {
 				inLayer = "u" + Integer.toString(scale) + "_m";
-				model.addLayer(inLayer,
-							   new SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
-							   	   .kernelSize(2,2)
-							   	   .stride(2,2)
-							   	   .build(),
-						   	   outLayer);
+				maxLayer(model,inLayer,outLayer,2,2);
 				outLayer = inLayer;
 				System.out.println(inLayer + " -> " + outLayer);
 			}
 		}
 		inLayer = outLayer;
 		outLayer = "dense";
-		int nIn = (int) Math.pow(2, modelDepth+unitComplexity-1);
 		int nOut = (int) Math.pow(2, modelDepth+unitComplexity);
 		model.addLayer(outLayer,
 					   new DenseLayer.Builder()
@@ -370,10 +364,9 @@ public class ModelParams {
 					   	   .nOut(nOut)
 					   	   .build(),
 				   	   inLayer);
-		System.out.println(inLayer + " " + Integer.toString(nIn) + " -> " + outLayer + " " + Integer.toString(nOut));
+		System.out.println(inLayer + " -> " + outLayer);
 		inLayer = outLayer;
 		outLayer = "classification";
-		nIn = nOut;
 		nOut = attributesOut;
 		if (modelType==IMAGE_CLASSIFICATION || modelType==PIXEL_CLASSIFICATION) {
 			nOut = numClasses;
@@ -385,31 +378,33 @@ public class ModelParams {
 					   	   .activation(Activation.SOFTMAX)
 					   	   .build(),
 					   "dense");
-		System.out.println(inLayer + " " + Integer.toString(nIn) + " -> " + outLayer + " " + Integer.toString(nOut));
+		System.out.println(inLayer + " -> " + outLayer);
 		model.setOutputs("classification");
 		model.setInputTypes(InputType.convolutionalFlat(rowsIn, colsIn, attributesIn));
 		return new ComputationGraph(model.build());
 	}
 	
 	public String createInceptionUnit(GraphBuilder model, int unitNum, int unitRepeat,String inLayer) {
-		// Number of features to generate at each scale
-		
-		
 		String unitBase = "u" + Integer.toString(unitNum) + "_x";
 		int uNum = Math.min(unitNum, unitScale.length-1);
-		int nOut = (int) Math.pow(2, unitComplexity+unitNum);
+		int totalOut = (int) Math.pow(2, unitComplexity+unitNum);
+		
 		for (int i = 0; i < unitRepeat+1; i++) {
-			String outLayer = unitBase + Integer.toString(i) + "_c";
-			model.addLayer(outLayer,
-						   new ConvolutionLayer.Builder(2*unitScale[uNum]+1,2*unitScale[uNum]+1)
-						   	   .padding(new int[] {unitScale[uNum],unitScale[uNum]})
-						   	   //.nIn(nIn)
-						   	   .nOut(nOut)
-						   	   .stride(1,1)
-						   	   .activation(Activation.RELU)
-						   	   .build(),
-						   	inLayer);
-			System.out.println(inLayer + " -> " + outLayer);
+			// All inception units must have at least 2 layers: a 1x1 filter and a max -> 1x1 filter
+			String[] mergeLayers = new String[unitScale[unitNum]];
+			// 1x1 filter
+			mergeLayers[0] = unitBase + Integer.toString(i) + "_s0_c";
+			convLayer(model,inLayer,mergeLayers[0],0,totalOut/2);
+			// max -> 1x1 filter
+			String dScale = unitBase + Integer.toString(i) + "_s0_m";
+			maxLayer(model,inLayer,dScale,3,1);
+			mergeLayers[1]= unitBase + Integer.toString(i) + "_s0_d";
+			convLayer(model,dScale,mergeLayers[0],0,totalOut/(int) Math.pow(2, unitScale[unitNum]));
+					
+			for (int j = 1; j < unitScale[unitNum]; j++) {
+				dScale = unitBase + Integer.toString(i) + "_s0_m";
+			}
+
 			inLayer = outLayer;
 		}
 		return inLayer;
@@ -421,13 +416,23 @@ public class ModelParams {
 		int nOut = (int) Math.pow(2, unitComplexity+unitNum);
 		for (int i = 0; i < unitRepeat+1; i++) {
 			String outLayer = unitBase + Integer.toString(i) + "_c";
-			layer(model,inLayer,outLayer,unitScale[uNum],nOut);
+			convLayer(model,inLayer,outLayer,unitScale[uNum],nOut);
 			inLayer = outLayer;
 		}
 		return inLayer;
 	}
 	
-	private void layer(GraphBuilder model, String inLayer, String outLayer, int scale, int numOut) {
+	private void maxLayer(GraphBuilder model, String inLayer, String outLayer, int scale, int stride) {
+		model.addLayer(inLayer,
+					   new SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
+					   	   .kernelSize(scale,scale)
+					   	   .stride(stride,stride)
+					   	   .build(),
+				   	   outLayer);
+		System.out.println(inLayer + " -> " + outLayer);
+	}
+	
+	private void convLayer(GraphBuilder model, String inLayer, String outLayer, int scale, int numOut) {
 		model.addLayer(outLayer,
 					   new ConvolutionLayer.Builder(2*scale+1,2*scale+1)
 					   	   .padding(new int[] {scale,scale})
