@@ -1,4 +1,4 @@
-package org.umich.ij.dbj;
+package org.umich.deepbluej;
 
 import java.util.ArrayList;
 import java.util.List;

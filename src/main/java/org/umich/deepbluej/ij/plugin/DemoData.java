@@ -1,10 +1,11 @@
-package org.umich.ij.dbj;
+package org.umich.deepbluej.ij.plugin;
 
 import java.io.IOException;
 import java.util.Arrays;
 
 import org.deeplearning4j.datasets.iterator.impl.MnistDataSetIterator;
 import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.umich.deepbluej.TrainingParams;
 
 public class DemoData {	
 	static public String[] DemoDataSets = {"NONE",

@@ -1,4 +1,4 @@
-package org.umich.ij.dbj;
+package org.umich.deepbluej.ij.plugin;
 
 import javax.swing.SwingUtilities;
 
